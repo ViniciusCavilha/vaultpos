@@ -15,7 +15,7 @@ service cloud.firestore {
       allow read: if signedIn() && request.auth.uid == usuarioId;
       allow create, update: if signedIn()
         && (request.auth.uid == usuarioId || isMember(request.resource.data.empresaId));
-      allow delete: if false;
+      allow delete: if signedIn() && request.auth.uid == usuarioId;
     }
 
     match /empresas/{empresaId} {
@@ -27,7 +27,7 @@ service cloud.firestore {
         allow create: if isMember(empresaId)
           || (signedIn() && request.auth.uid == empresaId && request.auth.uid == usuarioId);
         allow read, update: if isMember(empresaId);
-        allow delete: if false;
+        allow delete: if signedIn() && request.auth.uid == usuarioId;
       }
 
       match /clientes/{clienteId} {
