@@ -141,7 +141,7 @@ function handleBlur(event: FocusEvent) {
 
 .vault-field__control.is-disabled {
   cursor: not-allowed;
-  opacity: 0.6;
+  opacity: 1;
 }
 
 input {
@@ -167,14 +167,16 @@ input.has-right-icon {
 }
 
 input::placeholder {
-  color: #D1D5DB;
+  color: #6B7280;
   opacity: 1;
 }
 
 input:disabled {
   cursor: not-allowed;
-  color: #D1D5DB;
+  color: #111827;
 }
+
+input:disabled::placeholder { color: #6B7280; }
 
 .vault-field__icon {
   position: absolute;
@@ -206,7 +208,7 @@ input:disabled {
 }
 
 .is-disabled .vault-field__icon {
-  color: #D1D5DB;
+  color: #6B7280;
 }
 
 .vault-field__right-button {

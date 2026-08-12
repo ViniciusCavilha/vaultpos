@@ -3,9 +3,11 @@ import {
   EmailAuthProvider,
   GoogleAuthProvider,
   createUserWithEmailAndPassword,
+  deleteUser,
   getAuth,
   onAuthStateChanged,
   reauthenticateWithCredential,
+  reauthenticateWithPopup,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signInWithPopup,
@@ -16,6 +18,15 @@ import {
 } from 'firebase/auth'
 import { auth, firebaseConfig } from '@/firebase/config'
 
+const authTimeoutMs = 30000
+
+function withAuthTimeout<T>(promise: Promise<T>, message: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error(message)), authTimeoutMs)
+    promise.then(resolve, reject).finally(() => window.clearTimeout(timer))
+  })
+}
+
 export async function login(email: string, password: string) {
   const { user } = await signInWithEmailAndPassword(auth, email, password)
   return user
@@ -24,7 +35,10 @@ export async function login(email: string, password: string) {
 export async function loginWithGoogle() {
   const provider = new GoogleAuthProvider()
   provider.setCustomParameters({ prompt: 'select_account' })
-  const { user } = await signInWithPopup(auth, provider)
+  const { user } = await withAuthTimeout(
+    signInWithPopup(auth, provider),
+    'O login com Google demorou demais. Feche a janela e tente novamente.',
+  )
   return user
 }
 
@@ -59,6 +73,21 @@ export async function createSecondaryUser(
 
 export async function logout() {
   await signOut(auth)
+}
+
+export async function reauthenticateWithGoogle() {
+  if (!auth.currentUser) throw new Error('Usuário não autenticado.')
+  const provider = new GoogleAuthProvider()
+  provider.setCustomParameters({ prompt: 'select_account' })
+  await withAuthTimeout(
+    reauthenticateWithPopup(auth.currentUser, provider),
+    'A confirmação com Google demorou demais. Tente novamente.',
+  )
+}
+
+export async function deleteCurrentUser() {
+  if (!auth.currentUser) throw new Error('Usuário não autenticado.')
+  await deleteUser(auth.currentUser)
 }
 
 export async function forgotPassword(email: string) {

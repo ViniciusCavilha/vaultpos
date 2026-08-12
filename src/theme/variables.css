@@ -94,6 +94,18 @@
   --ion-card-background: #FFFFFF;
 }
 
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  min-height: 100%;
+}
+
 body {
   font-family: 'Inter', sans-serif;
   background-color: #F8FAFC;
@@ -124,4 +136,18 @@ body {
   --background: #EF4444;
   --color: #FFFFFF;
   --border-radius: 12px;
+}
+
+ion-content::part(scroll) {
+  overscroll-behavior-y: contain;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
 }

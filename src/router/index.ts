@@ -5,7 +5,6 @@ import { useUserStore } from '@/stores/user.store';
 
 import TabsAdmin from '../views/TabsAdmin.vue';
 import TabsGarcom from '../views/TabsGarcom.vue';
-import HomePage from '../pages/HomePage.vue';
 import LoginPage from '../pages/auth/LoginPage.vue';
 import RegisterPage from '../pages/auth/RegisterPage.vue';
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage.vue';
@@ -38,8 +37,10 @@ const routes: Array<RouteRecordRaw> = [
   },
   {
     path: '/home',
-    name: 'Home',
-    component: HomePage
+    redirect: () => {
+      const auth = useAuthStore()
+      return auth.isAdmin ? '/admin/dashboard' : '/garcom/dashboard'
+    }
   },
   {
     path: '/register',
@@ -156,7 +157,7 @@ const routes: Array<RouteRecordRaw> = [
     redirect: () => {
       const auth = useAuthStore()
       if (!auth.isAuthenticated) return '/login'
-      return auth.isAdmin ? '/admin/dashboard' : '/home'
+      return auth.isAdmin ? '/admin/dashboard' : '/garcom/dashboard'
     }
   }
 ]
@@ -181,12 +182,12 @@ router.beforeEach(async (to) => {
   const isPrivateRoute = to.path.startsWith('/admin') || to.path.startsWith('/garcom') || to.path === '/home'
   const isAdminRoute = to.path.startsWith('/admin')
   const isAuthRoute = to.path === '/home'
+  const isGoogleRegistrationRoute = to.path === '/register' && to.query.google === '1'
 
   if (!auth.isAuthenticated && isPrivateRoute) {
     return '/login'
   }
-
-  // Garante que os dados do usuário logado (nome/empresa) estejam carregados
+  // Garante que os dados do usuário logado estejam carregados
   if (auth.isAuthenticated) {
     const userStore = useUserStore()
     if (!userStore.usuario) {
@@ -226,15 +227,19 @@ router.beforeEach(async (to) => {
   }
 
   if (auth.isAuthenticated && to.path === '/') {
-    return auth.isAdmin ? '/admin/dashboard' : '/home'
+    return auth.isAdmin ? '/admin/dashboard' : '/garcom/dashboard'
+  }
+
+  if (auth.isAuthenticated && isGoogleRegistrationRoute) {
+    return true
   }
 
   if (auth.isAuthenticated && isPublicRoute) {
-    return auth.isAdmin ? '/admin/dashboard' : '/home'
+    return auth.isAdmin ? '/admin/dashboard' : '/garcom/dashboard'
   }
 
   if (auth.isAuthenticated && isAdminRoute && !auth.isAdmin) {
-    return '/home'
+    return '/garcom/dashboard'
   }
 
   if (auth.isAuthenticated && isAuthRoute) {

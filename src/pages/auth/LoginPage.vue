@@ -145,9 +145,14 @@ async function loginDemo(type: 'admin' | 'garcom') {
 async function handleGoogleLogin() {
   if (authStore.loading) return
   try {
-    await authStore.loginGoogle()
-    await userStore.fetchUsuarioLogado()
-    await router.replace(userStore.usuario?.cargo === 'admin' ? '/admin/dashboard' : '/garcom/dashboard')
+    const result = await authStore.loginGoogle()
+    if (result.needsRegistration) {
+      await router.replace('/register?google=1')
+      return
+    }
+
+    void userStore.fetchUsuarioLogado()
+    await router.replace(authStore.isAdmin ? '/admin/dashboard' : '/garcom/dashboard')
   } catch (error) {
     errorMessage.value = authStore.error || (error instanceof Error ? error.message : 'Não foi possível entrar com Google.')
     showError.value = true

@@ -85,7 +85,9 @@ onMounted(() => {
 
 <style scoped>
 .vault-tab-bar {
-  height: calc(56px + env(safe-area-inset-bottom));
+  height: calc(76px + env(safe-area-inset-bottom));
+  contain: none;
+  overflow: visible;
   border-top: 1px solid #F3F4F6;
   background: #FFFFFF;
   box-shadow: none;
@@ -93,6 +95,7 @@ onMounted(() => {
 }
 
 ion-tab-button {
+  overflow: visible;
   --background: #FFFFFF;
   --color: #9CA3AF;
   --color-selected: #991B1B;
@@ -119,17 +122,24 @@ ion-tab-button.tab-selected ion-label { font-weight: 600; }
 }
 
 .new-order-slot {
+  position: relative;
   overflow: visible;
+  --padding-start: 0;
+  --padding-end: 0;
   --color: #FFFFFF;
 }
 
 .new-order-slot ion-fab-button {
+  position: absolute;
+  top: -24px;
+  left: 50%;
   width: 56px;
   height: 56px;
-  margin-top: -16px;
+  margin: 0;
+  transform: translateX(-50%);
   --background: #991B1B;
   --background-activated: #7F1D1D;
-  --box-shadow: 0 4px 12px rgba(153, 27, 27, 0.4);
+  --box-shadow: 0 8px 18px rgba(153, 27, 27, 0.32);
 }
 
 .new-order-slot ion-icon { color: #FFFFFF; font-size: 28px; }

@@ -132,3 +132,10 @@ export async function updateUltimoLogin(empresaId: string, usuarioId: string) {
 export async function deleteUsuario(empresaId: string, usuarioId: string) {
   await updateDoc(doc(col(empresaId), usuarioId), { ativo: false })
 }
+
+export async function deleteUsuarioPermanent(empresaId: string, usuarioId: string) {
+  const batch = writeBatch(db)
+  batch.delete(doc(col(empresaId), usuarioId))
+  batch.delete(doc(db, 'membros', usuarioId))
+  await batch.commit()
+}
