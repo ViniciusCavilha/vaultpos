@@ -23,6 +23,14 @@ export type VaultAuthUser = User & {
   }
 }
 
+const pendingDeletionKey = 'vaultpos_pending_account_deletion'
+const recentLoginWindowMs = 4 * 60 * 1000
+
+type PendingAccountDeletion = {
+  uid: string
+  empresaId: string | null
+}
+
 function compatibleUser(firebaseUser: User | null, role = 'user'): VaultAuthUser | null {
   if (!firebaseUser) return null
   return Object.assign(firebaseUser, {
@@ -44,6 +52,7 @@ export const useAuthStore = defineStore('auth', () => {
   const loading = ref(false)
   const error = ref<string | null>(null)
   const initialized = ref(false)
+  const deleteRequiresLogin = ref(false)
   const role = ref(storedRole())
   let initPromise: Promise<void> | null = null
   const contextTimeoutMs = 5000
@@ -60,6 +69,35 @@ export const useAuthStore = defineStore('auth', () => {
     role.value = nextRole || 'user'
     if (typeof window !== 'undefined') localStorage.setItem('vaultpos_user_role', role.value)
     if (user.value?.user_metadata) user.value.user_metadata.role = role.value
+  }
+
+  function getPendingAccountDeletion(): PendingAccountDeletion | null {
+    if (typeof window === 'undefined') return null
+    const raw = sessionStorage.getItem(pendingDeletionKey)
+    if (!raw) return null
+    try {
+      const pending = JSON.parse(raw) as Partial<PendingAccountDeletion>
+      return typeof pending.uid === 'string'
+        ? { uid: pending.uid, empresaId: typeof pending.empresaId === 'string' ? pending.empresaId : null }
+        : null
+    } catch {
+      sessionStorage.removeItem(pendingDeletionKey)
+      return null
+    }
+  }
+
+  function hasRecentLogin(firebaseUser: User) {
+    const lastSignIn = Date.parse(firebaseUser.metadata.lastSignInTime || '')
+    return Number.isFinite(lastSignIn) && Date.now() - lastSignIn <= recentLoginWindowMs
+  }
+
+  function savePendingAccountDeletion(uid: string, empresaId: string | null) {
+    if (typeof window === 'undefined') return
+    sessionStorage.setItem(pendingDeletionKey, JSON.stringify({ uid, empresaId }))
+  }
+
+  function clearPendingAccountDeletion() {
+    if (typeof window !== 'undefined') sessionStorage.removeItem(pendingDeletionKey)
   }
 
   async function syncUserContext(firebaseUser: User) {
@@ -279,25 +317,52 @@ export const useAuthStore = defineStore('auth', () => {
   async function deleteAccount(empresaId?: string | null) {
     loading.value = true
     error.value = null
+    deleteRequiresLogin.value = false
     try {
       if (!user.value?.uid) throw new Error('Usuário não autenticado.')
       const userToDelete = user.value
       const companyId = empresaId || (typeof window === 'undefined' ? null : localStorage.getItem('vaultpos_empresa_id'))
+
+      if (!hasRecentLogin(userToDelete)) {
+        savePendingAccountDeletion(userToDelete.uid, companyId)
+        deleteRequiresLogin.value = true
+        const recentLoginError = new Error('Entre novamente para confirmar a exclusão da conta.')
+        Object.assign(recentLoginError, { code: 'auth/requires-recent-login' })
+        throw recentLoginError
+      }
+
       if (companyId) await deleteUsuarioPermanent(companyId, userToDelete.uid)
       await deleteCurrentUser()
 
+      clearPendingAccountDeletion()
       user.value = null
       setRole('user')
       if (typeof window !== 'undefined') localStorage.removeItem('vaultpos_empresa_id')
     } catch (caught) {
       const code = errorCode(caught)
+      if (code === 'auth/requires-recent-login' && user.value?.uid) {
+        const companyId = empresaId || (typeof window === 'undefined' ? null : localStorage.getItem('vaultpos_empresa_id'))
+        savePendingAccountDeletion(user.value.uid, companyId)
+        deleteRequiresLogin.value = true
+      }
       error.value = code === 'auth/requires-recent-login'
-        ? 'Por segurança do Firebase, saia, entre novamente e tente excluir a conta de novo.'
+        ? 'Entre novamente para confirmar a exclusão da conta.'
         : caught instanceof Error ? caught.message : 'Erro ao excluir conta.'
       throw caught
     } finally {
       loading.value = false
     }
+  }
+
+  async function finishPendingAccountDeletion() {
+    const pending = getPendingAccountDeletion()
+    if (!pending || !user.value) return false
+    if (pending.uid !== user.value.uid) {
+      clearPendingAccountDeletion()
+      return false
+    }
+    await deleteAccount(pending.empresaId)
+    return true
   }
 
   async function forgotPassword(email: string) {
@@ -340,6 +405,7 @@ export const useAuthStore = defineStore('auth', () => {
     loading,
     error,
     initialized,
+    deleteRequiresLogin,
     isAuthenticated,
     userId,
     userEmail,
@@ -352,6 +418,7 @@ export const useAuthStore = defineStore('auth', () => {
     register,
     logout,
     deleteAccount,
+    finishPendingAccountDeletion,
     forgotPassword,
     setRole,
   }

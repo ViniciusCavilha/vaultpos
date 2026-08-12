@@ -123,6 +123,12 @@ async function handleLogin() {
 
   try {
     await authStore.login(email.value.trim(), password.value)
+    if (await authStore.finishPendingAccountDeletion()) {
+      userStore.clear()
+      errorMessage.value = 'Conta excluída com sucesso.'
+      showError.value = true
+      return
+    }
     await router.replace(authStore.isAdmin ? '/admin/dashboard' : '/garcom/dashboard')
   } catch (error) {
     errorMessage.value = authStore.error || (error instanceof Error ? error.message : 'Não foi possível entrar.')
@@ -146,6 +152,12 @@ async function handleGoogleLogin() {
   if (authStore.loading) return
   try {
     const result = await authStore.loginGoogle()
+    if (await authStore.finishPendingAccountDeletion()) {
+      userStore.clear()
+      errorMessage.value = 'Conta excluída com sucesso.'
+      showError.value = true
+      return
+    }
     if (result.needsRegistration) {
       await router.replace('/register?google=1')
       return

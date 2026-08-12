@@ -119,6 +119,14 @@ async function deleteAccount() {
     await showToast('Conta excluída com sucesso.', 'success')
     await router.replace('/login')
   } catch {
+    if (authStore.deleteRequiresLogin) {
+      deleteConfirmOpen.value = false
+      await authStore.logout()
+      userStore.clear()
+      await router.replace('/login?deleteAccount=1')
+      await showToast('Entre novamente para concluir a exclusão.', 'info')
+      return
+    }
     await showToast(authStore.error || 'Não foi possível excluir a conta.', 'error')
   }
 }
