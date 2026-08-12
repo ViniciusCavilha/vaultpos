@@ -1,2 +1,131 @@
-/* For information on how to create your own theme, please refer to:
-http://ionicframework.com/docs/theming/ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  /* Ionic primary color */
+  --ion-color-primary: #991B1B;
+  --ion-color-primary-rgb: 153, 27, 27;
+  --ion-color-primary-contrast: #FFFFFF;
+  --ion-color-primary-contrast-rgb: 255, 255, 255;
+  --ion-color-primary-shade: #871818;
+  --ion-color-primary-tint: #A33232;
+
+  /* VaultPOS colors */
+  --vault-color-primary: #991B1B;
+  --vault-color-primary-dark: #7F1D1D;
+  --vault-color-primary-light: #EF4444;
+  --vault-color-primary-soft: #FEF2F2;
+  --vault-color-success: #22C55E;
+  --vault-color-warning: #F59E0B;
+  --vault-color-error: #EF4444;
+  --vault-color-info: #0EA5E9;
+  --vault-color-bg: #F8FAFC;
+  --vault-color-surface: #FFFFFF;
+  --vault-color-border: #E5E7EB;
+  --vault-color-text-1: #111827;
+  --vault-color-text-2: #6B7280;
+  --vault-color-text-3: #9CA3AF;
+  --vault-color-placeholder: #D1D5DB;
+  --vault-color-white: #FFFFFF;
+
+  /* Gradients */
+  --vault-gradient-primary: linear-gradient(135deg, #991B1B, #EF4444);
+  --vault-gradient-dark: linear-gradient(135deg, #7F1D1D, #991B1B);
+  --vault-gradient-light: linear-gradient(135deg, #991B1B, #EF4444);
+
+  /* Typography */
+  --vault-font-family: 'Inter', sans-serif;
+  --vault-font-size-xs: 11px;
+  --vault-font-size-sm: 12px;
+  --vault-font-size-base: 14px;
+  --vault-font-size-md: 15px;
+  --vault-font-size-lg: 18px;
+  --vault-font-size-xl: 20px;
+  --vault-font-size-2xl: 24px;
+  --vault-font-size-3xl: 28px;
+  --vault-font-size-4xl: 32px;
+  --vault-font-weight-regular: 400;
+  --vault-font-weight-medium: 500;
+  --vault-font-weight-semibold: 600;
+  --vault-font-weight-bold: 700;
+
+  /* Spacing */
+  --vault-space-1: 4px;
+  --vault-space-2: 8px;
+  --vault-space-3: 12px;
+  --vault-space-4: 16px;
+  --vault-space-5: 20px;
+  --vault-space-6: 24px;
+  --vault-space-8: 32px;
+  --vault-space-10: 40px;
+
+  /* Border radius */
+  --vault-radius-sm: 6px;
+  --vault-radius-md: 10px;
+  --vault-radius-lg: 12px;
+  --vault-radius-xl: 16px;
+  --vault-radius-2xl: 24px;
+  --vault-radius-full: 9999px;
+
+  /* Shadows */
+  --vault-shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.06);
+  --vault-shadow-md: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --vault-shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.12);
+
+  /* Inputs and buttons */
+  --vault-input-height: 56px;
+  --vault-input-padding: 16px;
+  --vault-input-bg: #F9FAFB;
+  --vault-input-radius: 10px;
+  --vault-input-border-focus: #991B1B;
+  --vault-button-height: 52px;
+  --vault-button-radius: 12px;
+
+  /* Ionic global variables */
+  --ion-background-color: #F8FAFC;
+  --ion-background-color-rgb: 248, 250, 252;
+  --ion-text-color: #111827;
+  --ion-text-color-rgb: 17, 24, 39;
+  --ion-border-color: #E5E7EB;
+  --ion-font-family: 'Inter', sans-serif;
+  --ion-item-background: #FFFFFF;
+  --ion-toolbar-background: #FFFFFF;
+  --ion-tab-bar-background: #FFFFFF;
+  --ion-tab-bar-border-color: #F3F4F6;
+  --ion-card-background: #FFFFFF;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: #F8FAFC;
+  color: #111827;
+  -webkit-font-smoothing: antialiased;
+}
+
+.vault-gradient {
+  background: var(--vault-gradient-primary);
+}
+.vault-toast {
+  --background: #111827;
+  --color: #FFFFFF;
+  --border-radius: 12px;
+  --box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.vault-toast-success {
+  --button-color: #22C55E;
+}
+
+.vault-toast-error {
+  --button-color: #EF4444;
+}
+
+.vault-toast-warning {
+  --button-color: #F59E0B;
+}
+
+.vault-toast-info {
+  --button-color: #0EA5E9;
+}

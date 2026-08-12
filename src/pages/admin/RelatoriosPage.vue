@@ -1,17 +1,27 @@
 <template>
-  <ion-page>
-    <ion-header>
-      <ion-toolbar>
-        <ion-title>Relatorios</ion-title>
-      </ion-toolbar>
-    </ion-header>
-
-    <ion-content class="ion-padding">
-      <h1>Relatorios</h1>
-    </ion-content>
-  </ion-page>
+  <ion-page><ion-content :fullscreen="true" class="page-content"><main class="page-shell">
+    <h1>Relatórios</h1><div class="pills"><button v-for="p in periods" :key="p" :class="{active:period===p}" @click="period=p">{{p}}</button></div>
+    <VaultSkeleton v-if="loading" variant="card"/><VaultErrorState v-else-if="error" :message="error" @retry="load"/>
+    <template v-else>
+      <article class="revenue"><span>Faturamento total</span><strong>{{money(financeiroStore.totalRecebido)}}</strong><small>↑ 18% vs período anterior</small></article>
+      <div class="summary"><article><span>Ticket médio</span><strong>{{money(averageTicket)}}</strong></article><article><span>Comandas</span><strong>{{comandasStore.comandas.length}}</strong></article></div>
+      <section><h2>Vendas por dia</h2><div class="chart"><div v-for="(bar,i) in chart" :key="bar.day"><i :class="{highlight:i===maxIndex}" :style="{height:bar.height+'px'}"></i><span>{{bar.day}}</span></div></div></section>
+      <section><h2>Top 5 produtos</h2><div class="ranking"><article v-for="(item,index) in topProducts" :key="item.name"><b>{{index+1}}</b><span><strong>{{item.name}}</strong><small>{{item.quantity}} vendidos</small></span><strong>{{money(item.total)}}</strong></article></div></section>
+      <section><h2>Resumo por método</h2><div class="methods"><article v-for="item in methodSummary" :key="item.name"><span :class="item.class"><ion-icon :icon="item.icon"/></span><strong>{{item.name}}</strong><b>{{money(item.value)}}</b></article></div></section>
+    </template>
+  </main></ion-content></ion-page>
 </template>
 
 <script setup lang="ts">
-import { IonContent, IonHeader, IonPage, IonTitle, IonToolbar } from '@ionic/vue';
+import{computed,onMounted,ref}from'vue';import{IonContent,IonIcon,IonPage}from'@ionic/vue';import{cardOutline,cashOutline,qrCodeOutline}from'ionicons/icons'
+import VaultErrorState from '@/components/common/VaultErrorState.vue';import VaultSkeleton from '@/components/common/VaultSkeleton.vue';import{useComandasStore}from'@/stores/comandas.store';import{useFinanceiroStore}from'@/stores/financeiro.store';import{useUserStore}from'@/stores/user.store'
+const financeiroStore=useFinanceiroStore(),comandasStore=useComandasStore(),userStore=useUserStore(),period=ref('Semana'),periods=['Hoje','Semana','Mês'];const chart=[{day:'Seg',height:40},{day:'Ter',height:58},{day:'Qua',height:47},{day:'Qui',height:72},{day:'Sex',height:64},{day:'Sáb',height:80},{day:'Dom',height:55}],maxIndex=5
+const loading=computed(()=>financeiroStore.loading||comandasStore.loading),error=computed(()=>financeiroStore.error||comandasStore.error),averageTicket=computed(()=>comandasStore.comandas.length?financeiroStore.totalRecebido/comandasStore.comandas.length:0)
+const topProducts=[{name:'Cerveja Artesanal',quantity:87,total:1644.3},{name:'Hambúrguer Clássico',quantity:64,total:2041.6},{name:'Refrigerante',quantity:58,total:522},{name:'Porção de Fritas',quantity:41,total:1020.9},{name:'Água Mineral',quantity:36,total:216}]
+const methodSummary=computed(()=>[{name:'PIX',value:financeiroStore.totalPix,icon:qrCodeOutline,class:'pix'},{name:'Cartão',value:financeiroStore.totalCartao,icon:cardOutline,class:'card'},{name:'Dinheiro',value:financeiroStore.totalDinheiro,icon:cashOutline,class:'cash'}])
+function money(v:number){return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(v??0)}async function load(){if(!userStore.usuario)await userStore.fetchUsuarioLogado();await Promise.all([financeiroStore.fetchPagamentos(),comandasStore.fetchComandas()])}onMounted(load)
 </script>
+
+<style scoped>
+.page-content{--background:#F8FAFC}.page-shell{min-height:100%;padding:calc(56px + env(safe-area-inset-top)) 20px 36px;font-family:'Inter',sans-serif}h1{margin:0;color:#111827;font-size:24px;letter-spacing:0}.pills{display:flex;gap:8px;margin-top:16px}.pills button{padding:8px 20px;border:0;border-radius:20px;background:#F3F4F6;color:#6B7280}.pills button.active{background:#111827;color:#FFFFFF;font-weight:600}.revenue,.summary article{padding:16px;border-radius:12px;background:#FFFFFF;box-shadow:0 1px 3px rgba(0,0,0,.06)}.revenue{margin-top:16px}.revenue span,.summary span{display:block;color:#9CA3AF;font-size:10px;font-weight:600;text-transform:uppercase}.revenue strong{display:block;margin-top:6px;color:#111827;font-size:28px}.revenue small{display:block;margin-top:5px;color:#22C55E;font-size:12px}.summary{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}.summary strong{display:block;margin-top:6px;color:#111827;font-size:22px}.summary article:last-child strong{font-size:32px}section{margin-top:24px}h2{margin:0 0 10px;color:#111827;font-size:15px;letter-spacing:0}.chart{display:flex;height:130px;align-items:flex-end;justify-content:space-between;padding:16px;border-radius:12px;background:#FFFFFF}.chart>div{display:flex;width:12%;align-items:center;flex-direction:column;gap:6px}.chart i{width:26px;max-width:100%;border-radius:4px 4px 0 0;background:#FECACA}.chart i.highlight{background:#991B1B}.chart span{color:#9CA3AF;font-size:11px}.ranking article,.methods article{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid #F3F4F6}.ranking article>b{width:20px;color:#9CA3AF;font-size:14px}.ranking article>span{display:flex;flex:1;flex-direction:column}.ranking span strong,.methods strong{color:#111827;font-size:14px}.ranking small{color:#9CA3AF;font-size:12px}.ranking article>strong,.methods article>b{color:#111827;font-size:14px}.methods article>span{display:grid;width:36px;height:36px;place-items:center;border-radius:50%}.methods .pix{background:#F0FDF4;color:#22C55E}.methods .card{background:#E0F2FE;color:#0EA5E9}.methods .cash{background:#FEF3C7;color:#F59E0B}.methods strong{flex:1}
+</style>

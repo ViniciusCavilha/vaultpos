@@ -1,17 +1,27 @@
 <template>
-  <ion-page>
-    <ion-header>
-      <ion-toolbar>
-        <ion-title>Empresa</ion-title>
-      </ion-toolbar>
-    </ion-header>
-
-    <ion-content class="ion-padding">
-      <h1>Empresa</h1>
-    </ion-content>
-  </ion-page>
+  <ion-page><ion-content :fullscreen="true" class="page-content"><main class="page-shell">
+    <header class="page-header"><button @click="router.back()"><ion-icon :icon="chevronBack"/></button><h1>Empresa</h1></header>
+    <VaultSkeleton v-if="loading" variant="card"/><VaultErrorState v-else-if="error" :message="error" @retry="load"/>
+    <form v-else @submit.prevent="save">
+      <label class="logo-upload"><input type="file" accept="image/*" @change="uploadLogo"/><img v-if="form.logo" :src="form.logo" alt="Logo da empresa"/><span v-else><ion-icon :icon="cameraOutline"/>Adicionar logo</span><b v-if="form.logo">Trocar</b></label>
+      <section><h2>Dados principais</h2><div class="field-card"><label><ion-icon :icon="businessOutline"/><span>Razão Social<input v-model="form.name"/></span></label><label><ion-icon :icon="businessOutline"/><span>Nome Fantasia<input v-model="form.tradeName"/></span></label><label><ion-icon :icon="documentOutline"/><span>CNPJ<input v-model="form.cnpj" placeholder="XX.XXX.XXX/XXXX-XX"/></span></label></div></section>
+      <section><h2>Contato</h2><div class="field-card"><label><ion-icon :icon="callOutline"/><span>Telefone<input v-model="form.phone" type="tel"/></span></label><label><ion-icon :icon="mailOutline"/><span>E-mail<input v-model="form.email" type="email"/></span></label><label><ion-icon :icon="navigateOutline"/><span>Endereço<input v-model="form.address" placeholder="Rua, número - Cidade, UF"/></span></label></div></section>
+      <section><h2>Configurações</h2><div class="field-card"><label><ion-icon :icon="cashOutline"/><span>Taxa de Serviço<input v-model.number="form.serviceFee" type="number"/></span><b>%</b></label><label><ion-icon :icon="cashOutline"/><span>Moeda<ion-select v-model="form.currency"><ion-select-option value="BRL">BRL - Real</ion-select-option></ion-select></span></label></div></section>
+      <section><h2>Pagamentos aceitos</h2><div class="field-card toggles"><label><span><strong>PIX</strong><small>Pagamentos via chave PIX</small></span><ion-toggle v-model="form.pix"/></label><label><span><strong>Cartão</strong><small>Crédito e débito</small></span><ion-toggle v-model="form.card"/></label><label><span><strong>Dinheiro</strong><small>Pagamento em espécie</small></span><ion-toggle v-model="form.cash"/></label></div></section>
+      <footer><VaultButton label="Salvar alterações" loading-label="Salvando..." :loading="saving" @click="save"/></footer>
+    </form>
+  </main></ion-content></ion-page>
 </template>
 
 <script setup lang="ts">
-import { IonContent, IonHeader, IonPage, IonTitle, IonToolbar } from '@ionic/vue';
+import{onMounted,reactive,ref}from'vue';import{useRouter}from'vue-router';import{IonContent,IonIcon,IonPage,IonSelect,IonSelectOption,IonToggle}from'@ionic/vue';import{businessOutline,callOutline,cameraOutline,cashOutline,chevronBack,documentOutline,mailOutline,navigateOutline}from'ionicons/icons'
+import VaultButton from '@/components/common/VaultButton.vue';import VaultErrorState from '@/components/common/VaultErrorState.vue';import VaultSkeleton from '@/components/common/VaultSkeleton.vue';import{useVaultToast}from'@/composables/useVaultToast';import{getEmpresa,updateConfiguracoes,updateEmpresa}from'@/supabase/queries/empresas';import{uploadLogoEmpresa}from'@/supabase/storage';import{useUserStore}from'@/stores/user.store'
+const router=useRouter(),userStore=useUserStore(),{showToast}=useVaultToast();const loading=ref(false),saving=ref(false),error=ref('');const form=reactive({name:'',tradeName:'',cnpj:'',phone:'',email:'',address:'',logo:'',serviceFee:10,currency:'BRL',pix:true,card:true,cash:true})
+async function load(){if(!userStore.usuario)await userStore.fetchUsuarioLogado();if(!userStore.empresaId)return;loading.value=true;error.value='';try{const d=await getEmpresa(userStore.empresaId);Object.assign(form,{name:d.nome,tradeName:d.configuracoes?.nome_fantasia??'',cnpj:d.cnpj??'',phone:d.telefone??'',email:d.email??'',address:d.endereco??'',logo:d.logo??'',serviceFee:d.configuracoes?.taxa_servico??10,currency:d.configuracoes?.moeda??'BRL',pix:d.configuracoes?.aceita_pix??true,card:d.configuracoes?.aceita_cartao??true,cash:d.configuracoes?.aceita_dinheiro??true})}catch(e){error.value=e instanceof Error?e.message:'Erro ao carregar empresa.'}finally{loading.value=false}}
+async function uploadLogo(e:Event){const file=(e.target as HTMLInputElement).files?.[0];if(!file||!userStore.empresaId)return;try{form.logo=await uploadLogoEmpresa(userStore.empresaId,file);await showToast('Logo enviada!','success')}catch(e){await showToast(e instanceof Error?e.message:'Erro no upload.','error')}}
+async function save(){if(!userStore.empresaId||saving.value)return;saving.value=true;try{await Promise.all([updateEmpresa(userStore.empresaId,{nome:form.name,cnpj:form.cnpj||null,telefone:form.phone||null,email:form.email||null,endereco:form.address||null,logo:form.logo||null}),updateConfiguracoes(userStore.empresaId,{nome_fantasia:form.tradeName||null,taxa_servico:Number(form.serviceFee),moeda:form.currency,aceita_pix:form.pix,aceita_cartao:form.card,aceita_dinheiro:form.cash})]);await showToast('Dados salvos com sucesso!','success')}catch(e){await showToast(e instanceof Error?e.message:'Erro ao salvar dados.','error')}finally{saving.value=false}}onMounted(load)
 </script>
+
+<style scoped>
+.page-content{--background:#F8FAFC}.page-shell{min-height:100%;padding:calc(52px + env(safe-area-inset-top)) 20px 0;font-family:'Inter',sans-serif}.page-header{display:flex;align-items:center;gap:8px}.page-header button{display:grid;width:36px;height:36px;place-items:center;border:0;background:transparent;color:#111827}.page-header h1{margin:0;color:#111827;font-size:22px;letter-spacing:0}.logo-upload{position:relative;display:flex;width:96px;height:96px;margin:24px auto 0;align-items:center;justify-content:center;overflow:visible;border-radius:50%;background:#FFFFFF;color:#991B1B;text-align:center}.logo-upload input{display:none}.logo-upload img{width:100%;height:100%;border-radius:50%;object-fit:cover}.logo-upload span{display:flex;align-items:center;flex-direction:column;gap:8px;font-size:13px;font-weight:600}.logo-upload ion-icon{width:32px;height:32px;color:#9CA3AF}.logo-upload b{position:absolute;right:-8px;bottom:0;padding:5px 8px;border-radius:8px;background:#991B1B;color:#FFFFFF;font-size:11px}section{margin-top:28px}section h2{margin:0 0 8px;color:#9CA3AF;font-size:11px;font-weight:600;text-transform:uppercase}.field-card{overflow:hidden;border-radius:12px;background:#FFFFFF}.field-card>label{display:flex;min-height:68px;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid #F9FAFB}.field-card>label:last-child{border-bottom:0}.field-card label>ion-icon{width:20px;height:20px;color:#9CA3AF}.field-card label>span{display:flex;min-width:0;flex:1;flex-direction:column;gap:4px;color:#6B7280;font-size:12px}.field-card input{width:100%;padding:0;border:0;outline:0;background:transparent;color:#111827;font:400 14px 'Inter',sans-serif}.field-card ion-select{min-height:24px;padding:0;color:#111827}.field-card label>b{color:#6B7280}.toggles strong{color:#111827;font-size:14px}.toggles small{color:#9CA3AF;font-size:12px}.toggles ion-toggle{--track-background-checked:#991B1B}footer{position:sticky;bottom:0;margin:24px -20px 0;padding:12px 20px calc(12px + env(safe-area-inset-bottom));border-top:1px solid #E5E7EB;background:#FFFFFF}
+</style>

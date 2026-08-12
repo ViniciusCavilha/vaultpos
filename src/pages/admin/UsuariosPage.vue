@@ -1,17 +1,37 @@
 <template>
-  <ion-page>
-    <ion-header>
-      <ion-toolbar>
-        <ion-title>Usuarios</ion-title>
-      </ion-toolbar>
-    </ion-header>
-
-    <ion-content class="ion-padding">
-      <h1>Usuarios</h1>
-    </ion-content>
-  </ion-page>
+  <ion-page><ion-content :fullscreen="true" class="page-content"><ion-refresher slot="fixed" @ion-refresh="refresh"><ion-refresher-content/></ion-refresher>
+    <main class="page-shell"><header><h1>Usuários</h1><button @click="openCreate"><ion-icon :icon="add"/></button></header>
+      <VaultSkeleton v-if="loading" variant="list"/><VaultErrorState v-else-if="error" :message="error" @retry="load"/>
+      <VaultEmptyState v-else-if="!users.length" icon="people-outline" title="Sem usuários" message="Nenhum usuário cadastrado além de você." button-text="Adicionar Usuário" @action="openCreate"/>
+      <section v-else class="users-card"><button v-for="u in users" :key="u.id" class="user-row" @click="openEdit(u)">
+        <VaultAvatar :name="u.nome"/><span class="user-info"><span><strong>{{u.nome}}</strong><VaultBadge :variant="u.cargo==='admin'?'erro':'info'" :label="u.cargo==='admin'?'Admin':'Garçom'"/></span><small>{{u.email}}</small></span>
+        <ion-toggle :model-value="u.ativo" @click.stop @ion-change="toggleUser(u)"/>
+      </button></section>
+    </main>
+    <ion-modal :is-open="modalOpen" @did-dismiss="closeModal"><ion-page><ion-content class="modal"><header><h2>{{selected?'Editar Usuário':'Novo Usuário'}}</h2><button @click="closeModal">×</button></header><form @submit.prevent="save">
+      <VaultInput v-model="form.name" label="Nome completo" placeholder="Nome do usuário"/><VaultInput v-model="form.email" label="E-mail" type="email" placeholder="usuario@email.com" :disabled="!!selected"/><VaultInput v-model="form.phone" label="Telefone" type="tel" placeholder="(11) 99999-9999"/>
+      <fieldset><legend>Cargo</legend><div><button type="button" :class="{active:form.role==='admin'}" @click="form.role='admin'">Admin</button><button type="button" class="garcom" :class="{active:form.role==='garcom'}" @click="form.role='garcom'">Garçom</button></div></fieldset>
+      <VaultInput v-if="!selected" v-model="form.password" label="Senha" type="password" placeholder="Mínimo 8 caracteres"/>
+      <VaultButton label="Salvar" loading-label="Salvando..." :loading="saving" @click="save"/><VaultButton v-if="selected&&selected.ativo" variant="outline" label="Desativar usuário" @click="deactivateAlert=true"/>
+    </form></ion-content></ion-page></ion-modal>
+    <ion-alert :is-open="deactivateAlert" header="Desativar usuário?" message="O usuário perderá o acesso ao sistema." :buttons="deactivateButtons" @did-dismiss="deactivateAlert=false"/>
+  </ion-content></ion-page>
 </template>
 
 <script setup lang="ts">
-import { IonContent, IonHeader, IonPage, IonTitle, IonToolbar } from '@ionic/vue';
+import{onMounted,reactive,ref}from'vue';import{IonAlert,IonContent,IonIcon,IonModal,IonPage,IonRefresher,IonRefresherContent,IonToggle}from'@ionic/vue';import{add}from'ionicons/icons'
+import VaultAvatar from '@/components/common/VaultAvatar.vue';import VaultBadge from '@/components/common/VaultBadge.vue';import VaultButton from '@/components/common/VaultButton.vue';import VaultEmptyState from '@/components/common/VaultEmptyState.vue';import VaultErrorState from '@/components/common/VaultErrorState.vue';import VaultInput from '@/components/common/VaultInput.vue';import VaultSkeleton from '@/components/common/VaultSkeleton.vue'
+import{useVaultToast}from'@/composables/useVaultToast';import{supabase}from'@/supabase/client';import{createUsuario,getUsuarios,updateUsuario}from'@/supabase/queries/usuarios';import{useUserStore}from'@/stores/user.store'
+const userStore=useUserStore(),{showToast}=useVaultToast();const users=ref<any[]>([]),loading=ref(false),error=ref(''),modalOpen=ref(false),saving=ref(false),selected=ref<any|null>(null),deactivateAlert=ref(false)
+const form=reactive<{name:string;email:string;phone:string;role:'admin'|'garcom';password:string}>({name:'',email:'',phone:'',role:'garcom',password:''});const deactivateButtons=[{text:'Cancelar',role:'cancel'},{text:'Desativar',role:'destructive',handler:()=>deactivate()}]
+function reset(){Object.assign(form,{name:'',email:'',phone:'',role:'garcom',password:''})}function openCreate(){selected.value=null;reset();modalOpen.value=true}function openEdit(u:any){selected.value=u;Object.assign(form,{name:u.nome,email:u.email,phone:u.telefone??'',role:u.cargo,password:''});modalOpen.value=true}function closeModal(){modalOpen.value=false;selected.value=null;reset()}
+async function load(){if(!userStore.usuario)await userStore.fetchUsuarioLogado();if(!userStore.empresaId)return;loading.value=true;error.value='';try{users.value=await getUsuarios(userStore.empresaId)}catch(e){error.value=e instanceof Error?e.message:'Erro ao carregar usuários.'}finally{loading.value=false}}
+async function refresh(e:CustomEvent){await load();(e.target as HTMLIonRefresherElement).complete()}
+async function save(){if(!form.name||!form.email||(!selected.value&&form.password.length<8)||!userStore.empresaId)return;saving.value=true;try{if(selected.value){await updateUsuario(selected.value.id,{nome:form.name,telefone:form.phone||null,cargo:form.role})}else{const{error:authError}=await supabase.auth.signUp({email:form.email,password:form.password,options:{data:{nome:form.name}}});if(authError)throw authError;await createUsuario({empresa_id:userStore.empresaId,nome:form.name,email:form.email,telefone:form.phone||null,cargo:form.role,foto:null,ativo:true})}await load();closeModal();await showToast('Usuário salvo com sucesso!','success')}catch(e){await showToast(e instanceof Error?e.message:'Erro ao salvar usuário.','error')}finally{saving.value=false}}
+async function toggleUser(u:any){try{await updateUsuario(u.id,{ativo:!u.ativo});await load();await showToast(u.ativo?'Usuário desativado':'Usuário ativado','success')}catch(e){await showToast(e instanceof Error?e.message:'Erro ao atualizar usuário.','error')}}
+async function deactivate(){if(!selected.value)return;await updateUsuario(selected.value.id,{ativo:false});await load();closeModal();await showToast('Usuário desativado.','success')}onMounted(load)
 </script>
+
+<style scoped>
+.page-content{--background:#F8FAFC}.page-shell{min-height:100%;padding:calc(56px + env(safe-area-inset-top)) 20px 36px;font-family:'Inter',sans-serif}.page-shell>header{display:flex;align-items:center;justify-content:space-between}.page-shell h1{margin:0;color:#111827;font-size:24px;letter-spacing:0}.page-shell>header button{display:grid;width:40px;height:40px;place-items:center;border:0;border-radius:50%;background:#991B1B;color:#FFFFFF}.users-card{margin-top:16px;overflow:hidden;border-radius:12px;background:#FFFFFF;box-shadow:0 1px 3px rgba(0,0,0,.06)}.user-row{display:flex;width:100%;align-items:center;gap:12px;padding:16px;border:0;border-bottom:1px solid #F9FAFB;background:transparent;text-align:left}.user-info{display:flex;min-width:0;flex:1;flex-direction:column;gap:5px}.user-info>span{display:flex;align-items:center;gap:8px}.user-info strong{overflow:hidden;color:#111827;font-size:15px;text-overflow:ellipsis;white-space:nowrap}.user-info small{color:#9CA3AF;font-size:12px}.user-row ion-toggle{--track-background-checked:#991B1B}.modal{--background:#F8FAFC}.modal header{display:flex;align-items:center;justify-content:space-between;padding:calc(24px + env(safe-area-inset-top)) 20px 12px;background:#FFFFFF}.modal h2{margin:0;color:#111827;font-size:20px}.modal header button{width:34px;height:34px;border:0;border-radius:50%;background:#F3F4F6;font-size:22px}.modal form{display:grid;gap:16px;padding:20px}.modal fieldset{padding:0;border:0}.modal legend{margin-bottom:6px;color:#6B7280;font-size:13px}.modal fieldset div{display:grid;grid-template-columns:1fr 1fr;gap:8px}.modal fieldset button{height:46px;border:1px solid #E5E7EB;border-radius:10px;background:#FFFFFF;color:#6B7280}.modal fieldset button.active{border-color:#991B1B;background:#FEF2F2;color:#991B1B;font-weight:600}.modal fieldset button.garcom.active{border-color:#0EA5E9;background:#EFF6FF;color:#0EA5E9}
+</style>

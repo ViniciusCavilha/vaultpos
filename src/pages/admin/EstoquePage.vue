@@ -1,17 +1,58 @@
 <template>
-  <ion-page>
-    <ion-header>
-      <ion-toolbar>
-        <ion-title>Estoque Admin</ion-title>
-      </ion-toolbar>
-    </ion-header>
-
-    <ion-content class="ion-padding">
-      <h1>Estoque Admin</h1>
-    </ion-content>
-  </ion-page>
+  <ion-page><ion-content :fullscreen="true" class="page-content">
+    <ion-refresher slot="fixed" @ion-refresh="refresh"><ion-refresher-content/></ion-refresher>
+    <main class="page-shell">
+      <header class="page-header"><h1>Estoque</h1><div><button class="movement" @click="openMovement()">Movimentação</button><button class="add" @click="openMovement()">+</button></div></header>
+      <div class="segments"><button :class="{active:tab==='products'}" @click="tab='products'">Produtos</button><button :class="{active:tab==='movements'}" @click="tab='movements'">Movimentações</button></div>
+      <template v-if="tab==='products'">
+        <div class="summary"><article><strong>{{ estoqueStore.totalProdutos }}</strong><span>Total</span></article><article><strong class="error">{{ outOfStock }}</strong><span>Em falta</span></article><article><strong class="warning">{{ estoqueStore.totalEstoqueBaixo }}</strong><span>Estoque baixo</span></article></div>
+        <div class="search"><ion-icon :icon="searchOutline"/><input v-model="search" placeholder="Buscar produto..."/></div>
+        <VaultSkeleton v-if="estoqueStore.loading" variant="list"/>
+        <VaultErrorState v-else-if="estoqueStore.error" :message="estoqueStore.error" @retry="load"/>
+        <VaultEmptyState v-else-if="!products.length" icon="cube-outline" title="Sem produtos" message="Nenhum produto encontrado no estoque."/>
+        <section v-else class="product-list">
+          <article v-for="p in products" :key="p.id" class="stock-item">
+            <div class="stock-head"><span><strong>{{p.nome}}</strong><small>{{p.categorias?.nome??'Sem categoria'}} · {{money(p.preco)}}</small></span><button @click="openMovement(p)"><ion-icon :icon="reloadOutline"/></button></div>
+            <div class="stock-status"><b :class="state(p)">{{status(p)}}</b><small>Min: {{p.estoque_minimo}}</small></div>
+            <div class="progress"><i :class="state(p)" :style="{width:width(p)}"></i></div>
+            <div class="quantity"><button @click="quickMove(p,'saida')">−</button><strong>{{p.estoque}}</strong><button class="plus" @click="quickMove(p,'entrada')">+</button></div>
+          </article>
+        </section>
+      </template>
+      <template v-else>
+        <VaultSkeleton v-if="estoqueStore.loading" variant="list"/>
+        <VaultErrorState v-else-if="estoqueStore.error" :message="estoqueStore.error" @retry="load"/>
+        <VaultEmptyState v-else-if="!estoqueStore.movimentacoes.length" icon="cube-outline" title="Sem movimentações" message="Nenhuma movimentação registrada ainda."/>
+        <section v-else class="movement-list"><article v-for="m in estoqueStore.movimentacoes" :key="m.id"><span class="movement-icon" :class="m.tipo"><ion-icon :icon="movementIcon(m.tipo)"/></span><span class="movement-info"><strong>{{m.produtos?.nome??'Produto'}}</strong><small>por {{m.usuarios?.nome??'Usuário'}} · {{dateTime(m.data)}}</small></span><span class="movement-value" :class="m.tipo"><strong>{{m.tipo==='entrada'?'+':'-'}}{{m.quantidade}}</strong><small>{{m.motivo||m.tipo}}</small></span></article></section>
+      </template>
+    </main>
+    <ion-modal :is-open="modalOpen" :initial-breakpoint=".75" :breakpoints="[0,.75,1]" @did-dismiss="modalOpen=false"><ion-content class="modal"><div class="handle"></div><header><h2>Registrar Movimentação</h2><button @click="modalOpen=false">×</button></header><form @submit.prevent="register">
+      <label>Produto<ion-select v-model="movement.productId" interface="action-sheet"><ion-select-option v-for="p in estoqueStore.produtosAtivos" :key="p.id" :value="p.id">{{p.nome}}</ion-select-option></ion-select></label>
+      <div class="types"><button v-for="type in ['entrada','saida','ajuste']" :key="type" type="button" :class="[type,{active:movement.type===type}]" @click="movement.type=type as any">{{type}}</button></div>
+      <VaultInput v-model="movement.quantity" label="Quantidade" type="number"/>
+      <label>Motivo<textarea v-model="movement.reason" placeholder="Opcional"></textarea></label>
+      <VaultButton label="Registrar" loading-label="Registrando..." :loading="registering" @click="register"/>
+    </form></ion-content></ion-modal>
+  </ion-content></ion-page>
 </template>
 
 <script setup lang="ts">
-import { IonContent, IonHeader, IonPage, IonTitle, IonToolbar } from '@ionic/vue';
+import {computed,onMounted,reactive,ref} from 'vue'
+import {IonContent,IonIcon,IonModal,IonPage,IonRefresher,IonRefresherContent,IonSelect,IonSelectOption} from '@ionic/vue'
+import {arrowDownCircleOutline,arrowUpCircleOutline,reloadOutline,searchOutline,swapHorizontalOutline} from 'ionicons/icons'
+import VaultButton from '@/components/common/VaultButton.vue';import VaultEmptyState from '@/components/common/VaultEmptyState.vue';import VaultErrorState from '@/components/common/VaultErrorState.vue';import VaultInput from '@/components/common/VaultInput.vue';import VaultSkeleton from '@/components/common/VaultSkeleton.vue'
+import {useVaultToast} from '@/composables/useVaultToast';import {useEstoqueStore} from '@/stores/estoque.store';import {useUserStore} from '@/stores/user.store'
+const estoqueStore=useEstoqueStore(),userStore=useUserStore(),{showToast}=useVaultToast();const tab=ref<'products'|'movements'>('products'),search=ref(''),modalOpen=ref(false),registering=ref(false)
+const movement=reactive<{productId:string;type:'entrada'|'saida'|'ajuste';quantity:string;reason:string}>({productId:'',type:'entrada',quantity:'1',reason:''})
+const products=computed(()=>estoqueStore.produtosAtivos.filter(p=>p.nome.toLowerCase().includes(search.value.toLowerCase()))),outOfStock=computed(()=>estoqueStore.produtosAtivos.filter(p=>p.estoque<=0).length)
+function money(v:number){return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(v??0)}function state(p:any){return p.estoque<=0?'empty':p.estoque<=p.estoque_minimo?'low':'ok'}function status(p:any){return p.estoque<=0?'Sem estoque':p.estoque<=p.estoque_minimo?'Estoque baixo':'Em estoque'}function width(p:any){return Math.min(100,p.estoque/Math.max(1,p.estoque_minimo*3)*100)+'%'}function dateTime(v:string){return new Intl.DateTimeFormat('pt-BR',{dateStyle:'short',timeStyle:'short'}).format(new Date(v))}function movementIcon(t:string){return t==='entrada'?arrowDownCircleOutline:t==='saida'?arrowUpCircleOutline:swapHorizontalOutline}
+async function load(){if(!userStore.usuario)await userStore.fetchUsuarioLogado();await Promise.all([estoqueStore.fetchProdutos(),estoqueStore.fetchCategorias(),estoqueStore.fetchMovimentacoes()])}async function refresh(e:CustomEvent){await load();(e.target as HTMLIonRefresherElement).complete()}
+function openMovement(p?:any){movement.productId=p?.id??'';movement.type='entrada';movement.quantity='1';movement.reason='';modalOpen.value=true}
+async function quickMove(p:any,type:'entrada'|'saida'){if(type==='saida'&&p.estoque<=0)return;try{await estoqueStore.registrarMovimentacao({produto_id:p.id,tipo:type,quantidade:1,motivo:'Ajuste rápido'});await showToast('Movimentação registrada!','success')}catch(e){await showToast(e instanceof Error?e.message:'Erro na movimentação.','error')}}
+async function register(){if(!movement.productId||Number(movement.quantity)<=0)return;registering.value=true;try{await estoqueStore.registrarMovimentacao({produto_id:movement.productId,tipo:movement.type,quantidade:Number(movement.quantity),motivo:movement.reason||undefined});modalOpen.value=false;await showToast('Movimentação registrada!','success')}catch(e){await showToast(e instanceof Error?e.message:'Erro na movimentação.','error')}finally{registering.value=false}}
+onMounted(load)
 </script>
+
+<style scoped>
+.page-content{--background:#F8FAFC}.page-shell{min-height:100%;padding:calc(56px + env(safe-area-inset-top)) 20px 36px;font-family:'Inter',sans-serif}.page-header{display:flex;align-items:center;justify-content:space-between}.page-header h1{margin:0;color:#111827;font-size:24px;letter-spacing:0}.page-header>div{display:flex;gap:8px}.page-header button{height:36px;border-radius:8px;font:600 13px 'Inter',sans-serif}.movement{padding:0 12px;border:1px solid #991B1B;background:transparent;color:#991B1B}.page-header .add{width:36px;border:0;border-radius:50%;background:#991B1B;color:#FFFFFF;font-size:22px}.segments{display:grid;grid-template-columns:1fr 1fr;margin-top:16px;padding:3px;border-radius:10px;background:#F3F4F6}.segments button{height:36px;border:0;border-radius:8px;background:transparent;color:#9CA3AF}.segments button.active{background:#FFFFFF;color:#111827;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.08)}.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:16px}.summary article{display:flex;padding:12px 6px;align-items:center;flex-direction:column;border-radius:10px;background:#FFFFFF;box-shadow:0 1px 3px rgba(0,0,0,.06)}.summary strong{color:#111827;font-size:26px}.summary strong.error{color:#EF4444}.summary strong.warning{color:#F59E0B}.summary span{color:#9CA3AF;font-size:11px}.search{position:relative;margin:16px 0}.search ion-icon{position:absolute;top:50%;left:14px;transform:translateY(-50%);color:#9CA3AF}.search input{width:100%;height:46px;padding:0 16px 0 42px;border:0;border-radius:10px;outline:0;background:#F3F4F6}.product-list,.movement-list{overflow:hidden;border-radius:12px;background:#FFFFFF}.stock-item{padding:16px;border-bottom:1px solid #F3F4F6}.stock-head,.stock-status{display:flex;align-items:center;justify-content:space-between}.stock-head>span{display:flex;flex-direction:column;gap:4px}.stock-head strong{color:#111827;font-size:14px}.stock-head small,.stock-status small{color:#9CA3AF;font-size:11px}.stock-head button{border:0;background:transparent;color:#9CA3AF}.stock-status{margin-top:10px}.stock-status b{font-size:11px}.ok{color:#22C55E}.low{color:#F59E0B}.empty{color:#EF4444}.progress{height:4px;margin-top:7px;border-radius:2px;background:#F3F4F6}.progress i{display:block;height:100%;border-radius:2px;background:#22C55E}.progress i.low{background:#F59E0B}.progress i.empty{background:#EF4444}.quantity{display:flex;align-items:center;justify-content:flex-end;gap:12px;margin-top:12px}.quantity button{width:32px;height:32px;border:1px solid #E5E7EB;border-radius:50%;background:#FFFFFF;font-size:18px}.quantity button.plus{border-color:#991B1B;background:#991B1B;color:#FFFFFF}.movement-list article{display:flex;align-items:center;gap:12px;padding:16px;border-bottom:1px solid #F3F4F6}.movement-icon{display:grid;width:40px;height:40px;place-items:center;border-radius:50%;background:#E0F2FE;color:#0EA5E9}.movement-icon.entrada{background:#F0FDF4;color:#22C55E}.movement-icon.saida{background:#FEE2E2;color:#EF4444}.movement-info{display:flex;min-width:0;flex:1;flex-direction:column}.movement-info strong{color:#111827;font-size:14px}.movement-info small,.movement-value small{color:#9CA3AF;font-size:11px}.movement-value{display:flex;align-items:flex-end;flex-direction:column}.movement-value strong{color:#0EA5E9}.movement-value.entrada strong{color:#22C55E}.movement-value.saida strong{color:#EF4444}.modal{--background:#FFFFFF}.handle{width:32px;height:4px;margin:12px auto;border-radius:2px;background:#E5E7EB}.modal header{display:flex;justify-content:space-between;padding:0 20px}.modal h2{margin:0;font-size:18px}.modal header button{width:32px;height:32px;border:0;border-radius:50%;background:#F3F4F6;font-size:22px}.modal form{display:grid;gap:16px;padding:20px}.modal label{color:#6B7280;font-size:13px}.modal ion-select,.modal textarea{display:block;width:100%;margin-top:6px;border:1px solid #E5E7EB;border-radius:10px;background:#F9FAFB}.modal ion-select{height:52px;padding:0 12px}.modal textarea{height:80px;padding:12px;resize:none}.types{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.types button{height:40px;border:0;border-radius:8px;background:#F3F4F6;color:#6B7280;text-transform:capitalize}.types button.active{color:#FFFFFF}.types button.entrada.active{background:#22C55E}.types button.saida.active{background:#EF4444}.types button.ajuste.active{background:#0EA5E9}
+</style>
