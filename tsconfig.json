@@ -13,6 +13,8 @@
     "skipLibCheck": true,
     "noEmit": true,
     "paths": {
+      "@supabase/supabase-js": ["./src/firebase/compat/supabase-js.ts"],
+      "@/supabase/*": ["./src/firebase/compat/*"],
       "@/*": ["./src/*"]
     }
   },

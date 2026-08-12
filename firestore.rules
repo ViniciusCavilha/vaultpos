@@ -1,0 +1,67 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isMember(empresaId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/empresas/$(empresaId)/usuarios/$(request.auth.uid));
+    }
+
+    match /membros/{usuarioId} {
+      allow read: if signedIn() && request.auth.uid == usuarioId;
+      allow create, update: if signedIn()
+        && (request.auth.uid == usuarioId || isMember(request.resource.data.empresaId));
+      allow delete: if false;
+    }
+
+    match /empresas/{empresaId} {
+      allow create: if signedIn() && request.auth.uid == empresaId;
+      allow read, update: if isMember(empresaId);
+      allow delete: if false;
+
+      match /usuarios/{usuarioId} {
+        allow create: if isMember(empresaId)
+          || (signedIn() && request.auth.uid == empresaId && request.auth.uid == usuarioId);
+        allow read, update: if isMember(empresaId);
+        allow delete: if false;
+      }
+
+      match /clientes/{clienteId} {
+        allow read, write: if isMember(empresaId);
+      }
+
+      match /categorias/{categoriaId} {
+        allow read, write: if isMember(empresaId);
+      }
+
+      match /produtos/{produtoId} {
+        allow read, write: if isMember(empresaId);
+      }
+
+      match /comandas/{comandaId} {
+        allow read, write: if isMember(empresaId);
+
+        match /itens/{itemId} {
+          allow read, write: if isMember(empresaId);
+        }
+      }
+
+      match /pagamentos/{pagamentoId} {
+        allow read, write: if isMember(empresaId);
+      }
+
+      match /movimentacoes/{movimentoId} {
+        allow read, write: if isMember(empresaId);
+      }
+
+      match /configuracoes/{configuracaoId} {
+        allow create: if isMember(empresaId) || (signedIn() && request.auth.uid == empresaId);
+        allow read, update, delete: if isMember(empresaId);
+      }
+    }
+  }
+}

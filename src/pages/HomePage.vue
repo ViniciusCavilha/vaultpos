@@ -74,7 +74,6 @@ import { useAuthStore } from '@/stores/auth.store'
 const router = useRouter()
 const auth = useAuthStore()
 
-const userName = computed(() => auth.user?.user_metadata?.full_name || auth.userEmail || 'Usuário')
 const isAdmin = computed(() => auth.isAdmin)
 
 const goToAdmin = () => router.push('/admin/dashboard')

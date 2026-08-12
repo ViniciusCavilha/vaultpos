@@ -1,404 +1,74 @@
 <template>
   <ion-page>
-    <ion-header>
-      <ion-toolbar>
-        <ion-title>Dashboard</ion-title>
-      </ion-toolbar>
-    </ion-header>
+    <ion-content fullscreen class='dashboard-page'>
+      <ion-refresher slot='fixed' @ion-refresh='refresh'><ion-refresher-content /></ion-refresher>
+      <main class='page-shell'>
+        <header class='page-header'><div><p>{{ greeting }}</p><h1>{{ displayName }}</h1></div><button type='button' @click='router.push(`/admin/configuracoes`)'><vault-avatar :name='displayName' size='md' /></button></header>
+        <section class='summary-section'><h2>Resumo de hoje</h2>
+          <div v-if='loading' class='kpi-grid'><vault-skeleton v-for='item in 4' :key='item' variant='kpi' /></div>
+          <vault-error-state v-else-if='errorMessage' :message='errorMessage' @retry='loadData' />
+          <div v-else class='kpi-grid'>
+            <article class='kpi-card'><span>VENDAS DO DIA <ion-icon :icon='trendingUpOutline' class='success' /></span><strong class='money'>{{ formatCurrency(financeiroStore.totalRecebido) }}</strong><small class='success'>↑ +12% hoje</small></article>
+            <article class='kpi-card'><span>COMANDAS ABERTAS <ion-icon :icon='receiptOutline' /></span><strong>{{ comandasStore.totalComandasAbertas }}</strong><small>3 aguardando</small></article>
+            <article class='kpi-card warning'><span>ESTOQUE BAIXO</span><strong>{{ estoqueStore.totalEstoqueBaixo }}</strong><small>produtos</small></article>
+            <article class='kpi-card'><span>CLIENTES ATENDIDOS <ion-icon :icon='peopleOutline' /></span><strong>{{ clientsToday }}</strong><small>hoje</small></article>
+          </div>
+        </section>
 
-    <ion-content class="ion-padding">
-      <div class="header-greeting">
-        Olá, {{ userStore.nomeUsuario || 'usuário' }}
-      </div>
+        <section class='chart-section'><div class='section-heading'><h2>Vendas — últimos 7 dias</h2><div class='period-pills'><button v-for='item in periods' :key='item' type='button' :class='{ active: period === item }' @click='period = item'>{{ item }}</button></div></div>
+          <vault-skeleton v-if='loading' variant='card' />
+          <article v-else class='chart-card'><div class='grid-lines'><i /><i /><i /></div><div class='bars'><div v-for='(bar, index) in chartData' :key='bar.label' class='bar-column'><span :class='{ highlight: index === chartData.length - 1 }' :style='{ height: `${bar.height}px` }' /><small>{{ bar.label }}</small></div></div></article>
+        </section>
 
-      <div v-if="loading" class="loading-container">
-        <ion-spinner name="crescent" class="loading-spinner" />
-        <div class="loading-text">Carregando dados...</div>
-      </div>
-
-      <ion-alert
-        v-else-if="!userStore.empresaId"
-        color="warning"
-        :is-open="true"
-        header="Atenção"
-        sub-header="Não foi possível carregar os dados da empresa"
-        message="Verifique se o e-mail está cadastrado na tabela 'usuarios' do Supabase."
-      />
-
-      <template v-else>
-        <ion-grid>
-          <ion-row>
-            <ion-col size="12" size-md="6">
-              <ion-card class="metric-card">
-                <ion-card-header>
-                  <div class="metric-title">
-                    <ion-icon :icon="receiptOutline" />
-                    <span>Comandas Abertas</span>
-                  </div>
-                </ion-card-header>
-                <ion-card-content>
-                  <div class="metric-value">{{ comandasStore.totalComandasAbertas }}</div>
-                </ion-card-content>
-              </ion-card>
-            </ion-col>
-
-            <ion-col size="12" size-md="6">
-              <ion-card class="metric-card">
-                <ion-card-header>
-                  <div class="metric-title">
-                    <ion-icon :icon="cubeOutline" />
-                    <span>Produtos Ativos</span>
-                  </div>
-                </ion-card-header>
-                <ion-card-content>
-                  <div class="metric-value">{{ estoqueStore.totalProdutos }}</div>
-                </ion-card-content>
-              </ion-card>
-            </ion-col>
-
-            <ion-col size="12" size-md="6">
-              <ion-card
-                class="metric-card"
-                :class="estoqueStore.totalEstoqueBaixo > 0 ? 'metric-card-warning' : ''"
-              >
-                <ion-card-header>
-                  <div class="metric-title">
-                    <ion-icon :icon="alertCircleOutline" />
-
-                    <span>Estoque Baixo</span>
-                  </div>
-                </ion-card-header>
-                <ion-card-content>
-                  <div class="metric-value">{{ estoqueStore.totalEstoqueBaixo }}</div>
-                </ion-card-content>
-              </ion-card>
-            </ion-col>
-
-            <ion-col size="12" size-md="6">
-              <ion-card class="metric-card">
-                <ion-card-header>
-                  <div class="metric-title">
-                    <ion-icon :icon="cashOutline" />
-                    <span>Total Recebido</span>
-                  </div>
-                </ion-card-header>
-                <ion-card-content>
-                  <div class="metric-value">{{ formatBRL(financeiroStore.totalRecebido) }}</div>
-                </ion-card-content>
-              </ion-card>
-            </ion-col>
-          </ion-row>
-        </ion-grid>
-
-        <ion-card class="section-card">
-          <ion-card-header>
-            <ion-card-title>Recebimentos por método</ion-card-title>
-          </ion-card-header>
-          <ion-card-content>
-            <div class="method-list">
-              <div class="method-row">
-                <div class="method-left">
-                  <ion-icon :icon="qrCodeOutline" class="method-icon" />
-
-                  <div>
-                    <div class="method-name">Pix</div>
-                    <div class="method-value">{{ formatBRL(financeiroStore.totalPix) }}</div>
-                  </div>
-                </div>
-                <div class="method-bar" :style="{ width: methodWidth(financeiroStore.totalPix) }" />
-              </div>
-
-              <div class="method-row">
-                <div class="method-left">
-                  <ion-icon :icon="cardOutline" class="method-icon" />
-                  <div>
-                    <div class="method-name">Cartão</div>
-                    <div class="method-value">{{ formatBRL(financeiroStore.totalCartao) }}</div>
-                  </div>
-                </div>
-                <div class="method-bar" :style="{ width: methodWidth(financeiroStore.totalCartao) }" />
-              </div>
-
-              <div class="method-row">
-                <div class="method-left">
-                  <ion-icon :icon="cashOutline" class="method-icon" />
-                  <div>
-                    <div class="method-name">Dinheiro</div>
-                    <div class="method-value">{{ formatBRL(financeiroStore.totalDinheiro) }}</div>
-                  </div>
-                </div>
-                <div class="method-bar" :style="{ width: methodWidth(financeiroStore.totalDinheiro) }" />
-              </div>
-            </div>
-          </ion-card-content>
-        </ion-card>
-
-        <ion-card
-          v-if="estoqueStore.produtosEstoqueBaixo.length > 0"
-          class="section-card attention-card"
-        >
-          <ion-card-header>
-            <ion-card-title>Atenção: Estoque Baixo</ion-card-title>
-          </ion-card-header>
-          <ion-card-content>
-            <ion-list>
-              <ion-item
-                v-for="produto in estoqueStore.produtosEstoqueBaixo.slice(0, 5)"
-                :key="produto.id"
-                button
-                router-link="/admin/estoque"
-              >
-                <ion-label>
-                  <div class="list-title">{{ produto.nome }}</div>
-                  <div class="list-subtitle">
-                    {{ produto.estoque }} / {{ produto.estoque_minimo }} unidades
-                  </div>
-                </ion-label>
-              </ion-item>
-            </ion-list>
-
-            <div v-if="estoqueStore.produtosEstoqueBaixo.length > 5" class="see-all">
-              <ion-item router-link="/admin/estoque" lines="none">
-                <ion-label>
-                  Ver todos ({{ estoqueStore.produtosEstoqueBaixo.length }})
-                </ion-label>
-              </ion-item>
-            </div>
-          </ion-card-content>
-        </ion-card>
-
-        <ion-card class="section-card">
-          <ion-card-header>
-            <ion-card-title>Comandas Abertas</ion-card-title>
-          </ion-card-header>
-          <ion-card-content>
-            <div v-if="comandasStore.comandasAbertas.length === 0" class="empty-state">
-              Nenhuma comanda aberta no momento.
-            </div>
-
-            <ion-list v-else>
-              <ion-item v-for="item in comandasStore.comandasAbertas.slice(0, 5)" :key="item.id">
-                <ion-label>
-                  <div class="list-title">
-                    {{ item.mesa ?? 'Sem mesa' }}
-                  </div>
-                  <div v-if="item.clientes?.nome" class="list-subtitle">{{ item.clientes.nome }}</div>
-                  <div class="list-subtitle">
-                    Total: {{ formatBRL(item.total ?? 0) }}
-                  </div>
-                  <div class="list-subtitle">
-                    há {{ minutosDesde(item.criada_em) }} min
-                  </div>
-                </ion-label>
-              </ion-item>
-            </ion-list>
-          </ion-card-content>
-        </ion-card>
-      </template>
+        <section class='recent-section'><div class='section-heading'><h2>Últimas comandas</h2><button type='button' @click='router.push(`/garcom/comandas`)'>Ver todas</button></div>
+          <vault-skeleton v-if='loading' variant='list' />
+          <vault-empty-state v-else-if='!recentOrders.length' icon='receipt-outline' title='Nenhuma comanda' message='Ainda não há comandas registradas.' />
+          <div v-else class='recent-list'><button v-for='order in recentOrders' :key='order.id' type='button' @click='router.push(`/garcom/comandas/${order.id}`)'><i :class='order.status' /><span><strong>Mesa {{ order.mesa ?? '—' }}</strong><small>{{ formatTime(order.criada_em) }}</small></span><b>{{ formatCurrency(order.total || order.subtotal) }}</b></button></div>
+        </section>
+      </main>
     </ion-content>
   </ion-page>
 </template>
 
-<script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
-
-import {
-  IonAlert,
-  IonCard,
-  IonCardContent,
-  IonCardHeader,
-  IonCardTitle,
-  IonCol,
-  IonContent,
-  IonGrid,
-  IonIcon,
-  IonItem,
-  IonLabel,
-  IonList,
-  IonPage,
-  IonRow,
-  IonTitle,
-  IonToolbar,
-  IonSpinner,
-} from '@ionic/vue'
-import {
-  receiptOutline,
-  cubeOutline,
-  alertCircleOutline,
-  cashOutline,
-  qrCodeOutline,
-  cardOutline,
-} from 'ionicons/icons'
-
-import { useUserStore } from '@/stores/user.store'
+<script setup lang='ts'>
+import { IonContent, IonIcon, IonPage, IonRefresher, IonRefresherContent } from '@ionic/vue'
+import { peopleOutline, receiptOutline, trendingUpOutline } from 'ionicons/icons'
+import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import VaultAvatar from '@/components/common/VaultAvatar.vue'
+import VaultEmptyState from '@/components/common/VaultEmptyState.vue'
+import VaultErrorState from '@/components/common/VaultErrorState.vue'
+import VaultSkeleton from '@/components/common/VaultSkeleton.vue'
+import { useAuthStore } from '@/stores/auth.store'
 import { useComandasStore } from '@/stores/comandas.store'
 import { useEstoqueStore } from '@/stores/estoque.store'
 import { useFinanceiroStore } from '@/stores/financeiro.store'
+import { useUserStore } from '@/stores/user.store'
 
+const router = useRouter()
+const authStore = useAuthStore()
 const userStore = useUserStore()
 const comandasStore = useComandasStore()
 const estoqueStore = useEstoqueStore()
 const financeiroStore = useFinanceiroStore()
-
-const loading = ref(true)
-
-const totalRecebido = computed(() => financeiroStore.totalRecebido)
-
-const formatBRL = (value: number) => {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  }).format(value ?? 0)
-}
-
-const methodWidth = (value: number) => {
-  const total = totalRecebido.value || 0
-  if (!total) return '0%'
-  const percent = Math.max(0, Math.min(100, (value / total) * 100))
-  return `${percent}%`
-}
-
-const minutosDesde = (iso: string | Date | null | undefined) => {
-  if (!iso) return '0'
-  const d = typeof iso === 'string' ? new Date(iso) : iso
-  const diffMs = Date.now() - d.getTime()
-  const minutes = Math.max(0, Math.floor(diffMs / 60000))
-  return minutes
-}
-
-onMounted(async () => {
-  try {
-    if (userStore.empresaId) {
-      await Promise.all([
-        comandasStore.fetchComandas('aberta'),
-        estoqueStore.fetchProdutos(),
-        financeiroStore.fetchPagamentos(),
-      ])
-    }
-  } finally {
-    loading.value = false
-  }
-})
+const period = ref('Semana')
+const periods = ['Hoje', 'Semana', 'Mês']
+const chartData = [{ label: 'Seg', height: 42 }, { label: 'Ter', height: 58 }, { label: 'Qua', height: 36 }, { label: 'Qui', height: 64 }, { label: 'Sex', height: 72 }, { label: 'Sáb', height: 80 }, { label: 'Dom', height: 54 }]
+const loading = computed(() => comandasStore.loading || estoqueStore.loading || financeiroStore.loading)
+const errorMessage = computed(() => comandasStore.error || estoqueStore.error || financeiroStore.error || '')
+const displayName = computed(() => userStore.nomeUsuario || String(authStore.user?.user_metadata?.full_name || 'Administrador'))
+const greeting = computed(() => { const hour = new Date().getHours(); return hour < 12 ? 'Bom dia,' : hour < 18 ? 'Boa tarde,' : 'Boa noite,' })
+const recentOrders = computed(() => comandasStore.comandas.slice(0, 3))
+const clientsToday = computed(() => { const today = new Date().toDateString(); return new Set(comandasStore.comandas.filter((item) => new Date(item.criada_em).toDateString() === today).map((item) => item.cliente_id).filter(Boolean)).size })
+const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
+const time = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' })
+function formatCurrency(value: number) { return currency.format(Number(value) || 0) }
+function formatTime(value: string) { const date = new Date(value); return Number.isNaN(date.getTime()) ? '—' : time.format(date) }
+async function loadData() { await Promise.all([comandasStore.fetchComandas(), financeiroStore.fetchPagamentos(), estoqueStore.fetchProdutos()]) }
+async function refresh(event: CustomEvent) { await loadData(); (event.target as HTMLIonRefresherElement).complete() }
+onMounted(loadData)
 </script>
 
 <style scoped>
-.header-greeting {
-  font-size: 1.05rem;
-  margin: 0.75rem 0 1.25rem;
-  color: var(--ion-text-color);
-  opacity: 0.92;
-}
-
-.loading-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem 0;
-}
-
-.loading-spinner {
-  font-size: 2.5rem;
-  color: var(--ion-color-primary);
-}
-
-.loading-text {
-  margin-top: 0.75rem;
-  opacity: 0.85;
-}
-
-.metric-card {
-  height: 100%;
-}
-
-.metric-title {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  font-weight: 700;
-}
-
-.metric-title ion-icon {
-  color: var(--ion-color-primary);
-}
-
-.metric-value {
-  font-size: 2rem;
-  font-weight: 800;
-}
-
-.metric-card-warning {
-  border-color: rgba(245, 158, 11, 0.45);
-  box-shadow: 0 24px 60px rgba(245, 158, 11, 0.12);
-}
-
-.section-card {
-  margin-top: 1rem;
-}
-
-.attention-card {
-  border-color: rgba(245, 158, 11, 0.35);
-}
-
-.method-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.method-row {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 0.5rem;
-}
-
-.method-left {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.method-icon {
-  color: var(--ion-color-primary);
-}
-
-.method-name {
-  font-weight: 700;
-  opacity: 0.95;
-}
-
-.method-value {
-  opacity: 0.85;
-}
-
-.method-bar {
-  height: 8px;
-  background: rgba(255, 122, 26, 0.18);
-  border-radius: 999px;
-  box-shadow: 0 0 0 1px rgba(255, 122, 26, 0.12) inset;
-}
-
-.method-bar[style] {
-  background: linear-gradient(90deg, var(--ion-color-primary), rgba(255, 122, 26, 0.25));
-}
-
-.list-title {
-  font-weight: 800;
-  margin-bottom: 0.15rem;
-}
-
-.list-subtitle {
-  font-size: 0.92rem;
-  opacity: 0.85;
-}
-
-.empty-state {
-  opacity: 0.85;
-  padding: 0.25rem 0.1rem;
-}
-
-.see-all {
-  margin-top: 0.5rem;
-}
+.dashboard-page{--background:#F8FAFC;--color:#111827}.page-shell{min-height:100%;padding:calc(56px + env(safe-area-inset-top)) 20px 36px}.page-header{display:flex;align-items:center;justify-content:space-between}.page-header p{margin:0;color:#6B7280;font-size:14px}.page-header h1{margin:2px 0 0;color:#111827;font-size:28px;font-weight:700}.page-header button{border:0;padding:0;background:transparent}.page-header :deep(.vault-avatar){width:40px;height:40px}.summary-section{margin-top:24px}h2{margin:0;color:#111827;font-size:16px;font-weight:600}.kpi-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}.kpi-card{display:flex;min-height:126px;flex-direction:column;border-radius:12px;padding:16px;background:#FFFFFF;box-shadow:0 1px 3px rgba(0,0,0,.06)}.kpi-card>span{display:flex;align-items:center;justify-content:space-between;color:#9CA3AF;font-size:10px;font-weight:600;letter-spacing:.3px}.kpi-card ion-icon{font-size:16px}.kpi-card strong{display:block;margin-top:10px;color:#111827;font-size:32px;font-weight:700;line-height:1.1}.kpi-card strong.money{font-size:22px}.kpi-card small{margin-top:auto;color:#9CA3AF;font-size:12px}.kpi-card .success{color:#22C55E}.kpi-card.warning{border:1px solid #FEF3C7;background:#FFFBEB}.kpi-card.warning span{color:#D97706}.kpi-card.warning strong{color:#F59E0B}.chart-section,.recent-section{margin-top:24px}.section-heading{display:flex;align-items:center;justify-content:space-between}.section-heading h2{font-size:15px}.period-pills{display:flex;gap:5px}.period-pills button{border:0;border-radius:20px;padding:6px 10px;background:#F3F4F6;color:#6B7280;font:400 12px Inter}.period-pills button.active{background:#111827;color:#FFFFFF;font-weight:600}.chart-card{position:relative;height:140px;margin-top:12px;border-radius:12px;padding:16px;background:#FFFFFF;box-shadow:0 1px 3px rgba(0,0,0,.06)}.grid-lines{position:absolute;top:20px;right:16px;bottom:34px;left:16px;display:flex;flex-direction:column;justify-content:space-between}.grid-lines i{border-top:1px solid #F3F4F6}.bars{position:relative;z-index:1;display:flex;height:108px;align-items:flex-end;justify-content:space-around}.bar-column{display:flex;height:100%;flex:1;flex-direction:column;align-items:center;justify-content:flex-end}.bar-column span{width:min(28px,65%);border-radius:4px 4px 0 0;background:#FECACA}.bar-column span.highlight{background:#991B1B}.bar-column small{margin-top:7px;color:#9CA3AF;font-size:11px}.section-heading>button{border:0;background:transparent;color:#991B1B;font:600 13px Inter}.recent-list{margin-top:8px}.recent-list button{display:flex;width:100%;align-items:center;border:0;border-bottom:1px solid #F3F4F6;padding:14px 0;background:transparent;text-align:left}.recent-list>button>i{width:8px;height:8px;border-radius:50%;background:#9CA3AF}.recent-list>button>i.aberta{background:#22C55E}.recent-list button span{display:flex;flex:1;align-items:center;margin-left:9px}.recent-list button strong{color:#111827;font-size:14px;font-weight:600}.recent-list button small{margin-left:8px;color:#9CA3AF;font-size:12px}.recent-list button>b{color:#111827;font-size:14px;font-weight:600}
 </style>
-

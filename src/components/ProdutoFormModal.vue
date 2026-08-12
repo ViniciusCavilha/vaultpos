@@ -1,477 +1,61 @@
 <template>
-  <ion-modal :is-open="isOpen" @didDismiss="handleDismiss">
-    <ion-header>
-      <ion-toolbar>
-        <ion-title>{{ isEditing ? 'Editar produto' : 'Novo produto' }}</ion-title>
-        <ion-buttons slot="end">
-          <ion-button fill="clear" :disabled="saving" @click="close">Cancelar</ion-button>
-        </ion-buttons>
-      </ion-toolbar>
-    </ion-header>
-
-    <ion-content class="ion-padding">
-      <form class="product-form" @submit.prevent="submit">
-        <ion-list class="form-list">
-          <ion-item>
-            <ion-label position="stacked">Nome *</ion-label>
-            <ion-input v-model="form.nome" autocomplete="off" />
-          </ion-item>
-          <div v-if="fieldErrors.nome" class="field-error">{{ fieldErrors.nome }}</div>
-
-          <ion-item>
-            <ion-label position="stacked">Codigo/SKU</ion-label>
-            <ion-input v-model="form.codigo" autocomplete="off" />
-          </ion-item>
-
-          <ion-item>
-            <ion-label position="stacked">Descricao</ion-label>
-            <ion-textarea v-model="form.descricao" :auto-grow="true" />
-          </ion-item>
-
-          <ion-item>
-            <ion-label position="stacked">Categoria</ion-label>
-            <ion-select
-              v-model="form.categoria_id"
-              interface="popover"
-              placeholder="Selecione"
-              @ionChange="handleCategoriaChange"
-            >
-              <ion-select-option :value="null">Sem categoria</ion-select-option>
-              <ion-select-option
-                v-for="categoria in categorias"
-                :key="categoria.id"
-                :value="categoria.id"
-              >
-                {{ categoria.nome }}
-              </ion-select-option>
-              <ion-select-option value="__nova__">+ Nova categoria</ion-select-option>
-            </ion-select>
-          </ion-item>
-
-          <div class="form-grid">
-            <div>
-              <ion-item>
-                <ion-label position="stacked">Preco de venda *</ion-label>
-                <ion-input v-model="form.preco" type="number" min="0" inputmode="decimal" />
-              </ion-item>
-              <div v-if="fieldErrors.preco" class="field-error">{{ fieldErrors.preco }}</div>
-            </div>
-
-            <ion-item>
-              <ion-label position="stacked">Custo</ion-label>
-              <ion-input v-model="form.custo" type="number" min="0" inputmode="decimal" />
-            </ion-item>
+  <ion-modal :is-open='isOpen' @did-dismiss='emit(`close`)'>
+    <ion-page>
+      <ion-content fullscreen class='product-modal'>
+        <header><h1>{{ isEditing ? 'Editar Produto' : 'Novo Produto' }}</h1><button type='button' aria-label='Fechar' :disabled='saving' @click='emit(`close`)'><ion-icon :icon='closeOutline' /></button></header>
+        <form @submit.prevent='submit'>
+          <label><span>Nome *</span><input v-model='form.nome' type='text' autocomplete='off' placeholder='Nome do produto' /></label>
+          <label><span>Categoria</span><ion-select v-model='form.categoria_id' interface='popover' placeholder='Selecione'><ion-select-option :value='null'>Sem categoria</ion-select-option><ion-select-option v-for='categoria in categorias' :key='categoria.id' :value='categoria.id'>{{ categoria.nome }}</ion-select-option></ion-select></label>
+          <div class='form-grid'>
+            <label><span>Preço *</span><div class='prefix-input'><b>R$</b><input v-model='form.preco' type='number' min='0' step='0.01' inputmode='decimal' /></div></label>
+            <label><span>Custo</span><div class='prefix-input'><b>R$</b><input v-model='form.custo' type='number' min='0' step='0.01' inputmode='decimal' /></div></label>
+            <label><span>Estoque atual</span><input v-model='form.estoque' type='number' min='0' step='1' inputmode='numeric' /></label>
+            <label><span>Estoque mínimo</span><input v-model='form.estoque_minimo' type='number' min='0' step='1' inputmode='numeric' /></label>
           </div>
-
-          <div class="form-grid">
-            <div>
-              <ion-item>
-                <ion-label position="stacked">Estoque atual *</ion-label>
-                <ion-input v-model="form.estoque" type="number" min="0" inputmode="numeric" />
-              </ion-item>
-              <div v-if="fieldErrors.estoque" class="field-error">{{ fieldErrors.estoque }}</div>
-            </div>
-
-            <div>
-              <ion-item>
-                <ion-label position="stacked">Estoque minimo *</ion-label>
-                <ion-input v-model="form.estoque_minimo" type="number" min="0" inputmode="numeric" />
-              </ion-item>
-              <div v-if="fieldErrors.estoque_minimo" class="field-error">
-                {{ fieldErrors.estoque_minimo }}
-              </div>
-            </div>
-          </div>
-
-          <ion-item>
-            <ion-label position="stacked">Unidade</ion-label>
-            <ion-select v-model="form.unidade" interface="popover">
-              <ion-select-option value="un">un</ion-select-option>
-              <ion-select-option value="kg">kg</ion-select-option>
-              <ion-select-option value="g">g</ion-select-option>
-              <ion-select-option value="l">l</ion-select-option>
-              <ion-select-option value="ml">ml</ion-select-option>
-            </ion-select>
-          </ion-item>
-
-          <ion-item>
-            <ion-label position="stacked">URL da imagem</ion-label>
-            <ion-input v-model="form.imagem" type="url" autocomplete="off" />
-          </ion-item>
-        </ion-list>
-
-        <div class="modal-actions">
-          <ion-button
-            v-if="isEditing"
-            fill="clear"
-            color="danger"
-            type="button"
-            :disabled="saving"
-            @click="confirmDeactivateOpen = true"
-          >
-            Desativar produto
-          </ion-button>
-
-          <div class="action-spacer" />
-
-          <ion-button fill="outline" type="button" :disabled="saving" @click="close">
-            Cancelar
-          </ion-button>
-          <ion-button type="submit" :disabled="saving">
-            <ion-spinner v-if="saving" name="crescent" />
-            <span v-else>Salvar</span>
-          </ion-button>
-        </div>
-      </form>
-
-      <ion-alert
-        :is-open="categoryAlertOpen"
-        header="Nova categoria"
-        :inputs="categoryAlertInputs"
-        :buttons="categoryAlertButtons"
-        @didDismiss="categoryAlertOpen = false"
-      />
-
-      <ion-alert
-        :is-open="confirmDeactivateOpen"
-        header="Desativar produto"
-        :message="`Tem certeza que deseja desativar ${form.nome || 'este produto'}? Ele deixara de aparecer nas listagens.`"
-        :buttons="deactivateAlertButtons"
-        @didDismiss="confirmDeactivateOpen = false"
-      />
-
-    </ion-content>
+          <label><span>Unidade</span><ion-select v-model='form.unidade' interface='popover'><ion-select-option value='un'>un</ion-select-option><ion-select-option value='kg'>kg</ion-select-option><ion-select-option value='L'>L</ion-select-option><ion-select-option value='ml'>ml</ion-select-option></ion-select></label>
+          <label><span>Código</span><input v-model='form.codigo' type='text' autocomplete='off' placeholder='Opcional' /></label>
+          <label><span>Descrição</span><textarea v-model='form.descricao' placeholder='Descrição do produto' /></label>
+          <p v-if='validationError' class='form-error'>{{ validationError }}</p>
+          <vault-button label='Salvar produto' loading-label='Salvando...' :loading='saving' @click='submit' />
+          <vault-button v-if='isEditing' class='delete-button' variant='outline' label='Excluir' :disabled='saving' @click='confirmDelete' />
+        </form>
+      </ion-content>
+    </ion-page>
   </ion-modal>
-
-  <ion-toast
-    :is-open="toastOpen"
-    :message="toastMessage"
-    :color="toastColor"
-    :duration="2400"
-    @didDismiss="toastOpen = false"
-  />
 </template>
 
-<script setup lang="ts">
+<script setup lang='ts'>
+import { IonContent, IonIcon, IonModal, IonPage, IonSelect, IonSelectOption, alertController } from '@ionic/vue'
+import { closeOutline } from 'ionicons/icons'
 import { computed, reactive, ref, watch } from 'vue'
-import {
-  IonAlert,
-  IonButton,
-  IonButtons,
-  IonContent,
-  IonHeader,
-  IonInput,
-  IonItem,
-  IonLabel,
-  IonList,
-  IonModal,
-  IonSelect,
-  IonSelectOption,
-  IonSpinner,
-  IonTextarea,
-  IonTitle,
-  IonToast,
-  IonToolbar,
-} from '@ionic/vue'
+import VaultButton from '@/components/common/VaultButton.vue'
+import { useVaultToast } from '@/composables/useVaultToast'
 import { useEstoqueStore } from '@/stores/estoque.store'
-import type {
-  Categoria,
-  CreateProduto,
-  ProdutoComCategoria,
-  UpdateProduto,
-} from '@/types/database.types'
+import type { Categoria, CreateProduto, ProdutoComCategoria, UpdateProduto } from '@/types/database.types'
 
-const NEW_CATEGORY_VALUE = '__nova__'
-
-const props = defineProps<{
-  isOpen: boolean
-  produto: ProdutoComCategoria | null
-  categorias: Categoria[]
-}>()
-
-const emit = defineEmits<{
-  close: []
-  saved: []
-}>()
-
+const props = defineProps<{ isOpen: boolean; produto: ProdutoComCategoria | null; categorias: Categoria[] }>()
+const emit = defineEmits<{ close: []; saved: [] }>()
 const estoqueStore = useEstoqueStore()
-
+const { showToast } = useVaultToast()
 const saving = ref(false)
-const categoryAlertOpen = ref(false)
-const confirmDeactivateOpen = ref(false)
-const toastOpen = ref(false)
-const toastMessage = ref('')
-const toastColor = ref<'success' | 'danger' | 'warning'>('success')
-
-const form = reactive({
-  nome: '',
-  codigo: '',
-  descricao: '',
-  categoria_id: null as string | null,
-  preco: '0',
-  custo: '',
-  estoque: '0',
-  estoque_minimo: '0',
-  unidade: 'un',
-  imagem: '',
-})
-
-const fieldErrors = reactive({
-  nome: '',
-  preco: '',
-  estoque: '',
-  estoque_minimo: '',
-})
-
+const validationError = ref('')
+const form = reactive({ nome: '', categoria_id: null as string | null, preco: '0', custo: '0', estoque: '0', estoque_minimo: '0', unidade: 'un', codigo: '', descricao: '' })
 const isEditing = computed(() => Boolean(props.produto?.id))
-
-const categoryAlertInputs = [
-  {
-    name: 'nome',
-    type: 'text' as const,
-    placeholder: 'Nome da categoria',
-  },
-]
-
-const categoryAlertButtons = computed(() => [
-  {
-    text: 'Cancelar',
-    role: 'cancel',
-  },
-  {
-    text: 'Criar',
-    handler: async (data: { nome?: string }) => {
-      const nome = data.nome?.trim()
-      if (!nome) {
-        showToast('Informe o nome da categoria', 'warning')
-        return false
-      }
-
-      try {
-        const categoria = await estoqueStore.criarCategoria(nome)
-        form.categoria_id = categoria.id
-        showToast('Categoria criada com sucesso', 'success')
-        return true
-      } catch (err: any) {
-        showToast(err.message || 'Erro ao criar categoria', 'danger')
-        return false
-      }
-    },
-  },
-])
-
-const deactivateAlertButtons = computed(() => [
-  {
-    text: 'Cancelar',
-    role: 'cancel',
-  },
-  {
-    text: 'Desativar',
-    role: 'destructive',
-    handler: deactivate,
-  },
-])
-
-watch(
-  () => [props.isOpen, props.produto] as const,
-  ([isOpen]) => {
-    if (isOpen) {
-      resetForm(props.produto)
-    }
-  },
-  { immediate: true },
-)
-
-function resetForm(produto: ProdutoComCategoria | null) {
-  fieldErrors.nome = ''
-  fieldErrors.preco = ''
-  fieldErrors.estoque = ''
-  fieldErrors.estoque_minimo = ''
-
-  form.nome = produto?.nome ?? ''
-  form.codigo = produto?.codigo ?? ''
-  form.descricao = produto?.descricao ?? ''
-  form.categoria_id = produto?.categoria_id ?? null
-  form.preco = String(produto?.preco ?? 0)
-  form.custo = produto?.custo === null || produto?.custo === undefined ? '' : String(produto.custo)
-  form.estoque = String(produto?.estoque ?? 0)
-  form.estoque_minimo = String(produto?.estoque_minimo ?? 0)
-  form.unidade = produto?.unidade ?? 'un'
-  form.imagem = produto?.imagem ?? ''
-}
-
-function handleCategoriaChange(event: CustomEvent) {
-  if (event.detail.value === NEW_CATEGORY_VALUE) {
-    form.categoria_id = props.produto?.categoria_id ?? null
-    categoryAlertOpen.value = true
-  }
-}
-
-function validate() {
-  fieldErrors.nome = ''
-  fieldErrors.preco = ''
-  fieldErrors.estoque = ''
-  fieldErrors.estoque_minimo = ''
-
-  const preco = Number(form.preco)
-  const estoque = Number(form.estoque)
-  const estoqueMinimo = Number(form.estoque_minimo)
-
-  if (!form.nome.trim()) {
-    fieldErrors.nome = 'Nome e obrigatorio'
-  }
-
-  if (Number.isNaN(preco) || preco < 0) {
-    fieldErrors.preco = 'Preco nao pode ser negativo'
-  }
-
-  if (Number.isNaN(estoque) || estoque < 0) {
-    fieldErrors.estoque = 'Estoque nao pode ser negativo'
-  }
-
-  if (Number.isNaN(estoqueMinimo) || estoqueMinimo < 0) {
-    fieldErrors.estoque_minimo = 'Estoque minimo nao pode ser negativo'
-  }
-
-  return !fieldErrors.nome && !fieldErrors.preco && !fieldErrors.estoque && !fieldErrors.estoque_minimo
-}
-
+watch(() => [props.isOpen, props.produto] as const, ([open]) => { if (open) reset() }, { immediate: true })
+function reset() { const item = props.produto; form.nome = item?.nome || ''; form.categoria_id = item?.categoria_id || null; form.preco = String(item?.preco ?? 0); form.custo = String(item?.custo ?? 0); form.estoque = String(item?.estoque ?? 0); form.estoque_minimo = String(item?.estoque_minimo ?? 0); form.unidade = item?.unidade || 'un'; form.codigo = item?.codigo || ''; form.descricao = item?.descricao || ''; validationError.value = '' }
+function payload(): Omit<CreateProduto, 'empresa_id'> | UpdateProduto { return { nome: form.nome.trim(), categoria_id: form.categoria_id, preco: Number(form.preco), custo: Number(form.custo), estoque: Number(form.estoque), estoque_minimo: Number(form.estoque_minimo), unidade: form.unidade, codigo: form.codigo.trim() || null, descricao: form.descricao.trim() || null, imagem: props.produto?.imagem || null, ativo: true } }
+function validate() { if (!form.nome.trim()) return 'Informe o nome do produto.'; if (Number(form.preco) < 0 || Number(form.custo) < 0 || Number(form.estoque) < 0 || Number(form.estoque_minimo) < 0) return 'Os valores não podem ser negativos.'; return '' }
 async function submit() {
-  if (!validate()) {
-    showToast('Revise os campos destacados', 'warning')
-    return
-  }
-
+  validationError.value = validate(); if (validationError.value || saving.value) return
   saving.value = true
-  try {
-    const payload = buildPayload()
-
-    if (props.produto) {
-      await estoqueStore.editarProduto(props.produto.id, payload)
-      showToast('Produto atualizado com sucesso', 'success')
-    } else {
-      await estoqueStore.criarProduto(payload as Omit<CreateProduto, 'empresa_id'>)
-      showToast('Produto salvo com sucesso', 'success')
-    }
-
-    emit('saved')
-    close()
-  } catch (err: any) {
-    showToast(err.message || 'Erro ao salvar produto', 'danger')
-  } finally {
-    saving.value = false
-  }
+  try { if (props.produto) await estoqueStore.editarProduto(props.produto.id, payload() as UpdateProduto); else await estoqueStore.criarProduto(payload() as Omit<CreateProduto, 'empresa_id'>); await showToast(props.produto ? 'Produto atualizado com sucesso!' : 'Produto criado com sucesso!', 'success'); emit('saved'); emit('close') }
+  catch (error) { await showToast(estoqueStore.error || (error instanceof Error ? error.message : 'Erro ao salvar produto.'), 'error') }
+  finally { saving.value = false }
 }
-
-function buildPayload(): Omit<CreateProduto, 'empresa_id'> | UpdateProduto {
-  return {
-    categoria_id: form.categoria_id,
-    codigo: emptyToNull(form.codigo),
-    nome: form.nome.trim(),
-    descricao: emptyToNull(form.descricao),
-    preco: Number(form.preco),
-    custo: form.custo === '' ? 0 : Number(form.custo),
-    estoque: Number(form.estoque),
-    estoque_minimo: Number(form.estoque_minimo),
-    unidade: form.unidade || 'un',
-    imagem: emptyToNull(form.imagem),
-    ativo: true,
-  }
-}
-
-async function deactivate() {
-  if (!props.produto) return true
-
-  saving.value = true
-  try {
-    await estoqueStore.desativarProduto(props.produto.id)
-    showToast('Produto desativado com sucesso', 'success')
-    emit('saved')
-    close()
-    return true
-  } catch (err: any) {
-    showToast(err.message || 'Erro ao desativar produto', 'danger')
-    return false
-  } finally {
-    saving.value = false
-  }
-}
-
-function emptyToNull(value: string) {
-  const trimmed = value.trim()
-  return trimmed ? trimmed : null
-}
-
-function showToast(message: string, color: 'success' | 'danger' | 'warning') {
-  toastMessage.value = message
-  toastColor.value = color
-  toastOpen.value = true
-}
-
-function close() {
-  emit('close')
-}
-
-function handleDismiss() {
-  emit('close')
-}
+async function remove() { if (!props.produto) return; saving.value = true; try { await estoqueStore.desativarProduto(props.produto.id); await showToast('Produto excluído com sucesso!', 'success'); emit('saved'); emit('close') } catch (error) { await showToast(estoqueStore.error || (error instanceof Error ? error.message : 'Erro ao excluir produto.'), 'error') } finally { saving.value = false } }
+async function confirmDelete() { const alert = await alertController.create({ header: 'Excluir produto?', message: `O produto ${form.nome} será removido das listagens.`, buttons: [{ text: 'Cancelar', role: 'cancel' }, { text: 'Excluir', role: 'destructive', handler: remove }] }); await alert.present() }
 </script>
 
 <style scoped>
-.product-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.form-list {
-  padding: 0;
-  background: transparent;
-}
-
-ion-item {
-  --background: rgba(255, 255, 255, 0.03);
-  --border-color: rgba(255, 122, 26, 0.16);
-  --border-radius: 14px;
-  --padding-start: 0.85rem;
-  --inner-padding-end: 0.85rem;
-  margin-bottom: 0.7rem;
-  border: 1px solid rgba(255, 122, 26, 0.16);
-  border-radius: 14px;
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 0.75rem;
-}
-
-.field-error {
-  margin: -0.45rem 0 0.7rem 0.85rem;
-  color: var(--ion-color-danger);
-  font-size: 0.82rem;
-}
-
-.modal-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.65rem;
-  margin-top: 0.5rem;
-}
-
-.action-spacer {
-  flex: 1 1 auto;
-}
-
-ion-spinner {
-  width: 18px;
-  height: 18px;
-}
-
-@media (min-width: 720px) {
-  .form-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
+.product-modal{--background:#F8FAFC;--color:#111827}.product-modal header{display:flex;align-items:center;justify-content:space-between;padding:calc(24px + env(safe-area-inset-top)) 20px 16px}.product-modal header h1{margin:0;font-size:20px;font-weight:700}.product-modal header button{display:grid;width:32px;height:32px;place-items:center;border:0;border-radius:50%;background:#F3F4F6;color:#6B7280}.product-modal form{display:grid;gap:16px;padding:0 20px 32px}.product-modal label{display:block;color:#6B7280;font-size:13px}.product-modal label>span{display:block;margin-bottom:6px}.product-modal input,.product-modal textarea,.product-modal ion-select,.prefix-input{width:100%;border:1px solid #E5E7EB;border-radius:10px;outline:0;background:#FFFFFF;color:#111827;font:400 14px Inter}.product-modal input,.product-modal ion-select{height:52px;padding:0 16px}.product-modal ion-select{--padding-start:16px;--padding-end:12px}.product-modal textarea{height:88px;resize:none;padding:12px 16px}.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.prefix-input{display:flex;align-items:center}.prefix-input b{padding-left:14px;color:#6B7280;font-size:13px}.prefix-input input{min-width:0;border:0;background:transparent}.form-error{margin:0;color:#EF4444;font-size:12px}.delete-button{margin-top:-4px}.delete-button :deep(.vault-button){--border-color:#EF4444;--color:#EF4444}@media(max-width:380px){.form-grid{grid-template-columns:1fr}}
 </style>

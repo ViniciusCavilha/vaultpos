@@ -1,300 +1,250 @@
-import { defineStore } from "pinia";
-import { ref, computed } from "vue";
-import { supabase } from "@/supabase/client";
-import type { User, Session } from "@supabase/supabase-js";
+import { computed, ref } from 'vue'
+import { defineStore } from 'pinia'
+import type { User } from 'firebase/auth'
+import {
+  forgotPassword as firebaseForgotPassword,
+  login as firebaseLogin,
+  loginWithGoogle,
+  logout as firebaseLogout,
+  onAuthChange,
+  register as firebaseRegister,
+} from '@/firebase/auth'
+import { createEmpresa } from '@/firebase/collections/empresas'
+import { createUsuario, getUsuarioById, getUsuarioMembership } from '@/firebase/collections/usuarios'
 
-// ATENÇÃO: Sistema de autenticação híbrido.
-// 1) Primeiro tenta autenticar com usuários fixos salvos em localStorage (modo mock/dev).
-// 2) Se não encontrar, tenta autenticação real via Supabase (signInWithPassword).
-// Revisar antes de ir para produção: usuários locais não existem na tabela de usuários 
-// do Supabase e podem causar erros em queries que dependem de user.id real.
-
-interface LocalUser {
-  email: string;
-  password: string;
-  full_name?: string;
-  role?: 'admin' | 'user';
+export type VaultAuthUser = User & {
+  id?: string
+  user_metadata?: {
+    full_name?: string | null
+    phone?: string | null
+    role?: string
+  }
 }
 
-export const useAuthStore = defineStore("auth", () => {
-  // State
-  const user = ref<User | null>(null);
-  const session = ref<Session | null>(null);
-  const loading = ref(false);
-  const error = ref<string | null>(null);
-  const initialized = ref(false);
-
-  const storageKey = 'vaultpos-users';
-  const sessionKey = 'vaultpos-session';
-  const defaultUsers: LocalUser[] = [
-    {
-      email: 'admin@vaultpos.com',
-      password: 'admin123',
-      full_name: 'Administrador',
-      role: 'admin',
+function compatibleUser(firebaseUser: User | null, role = 'user'): VaultAuthUser | null {
+  if (!firebaseUser) return null
+  return Object.assign(firebaseUser, {
+    id: firebaseUser.uid,
+    user_metadata: {
+      full_name: firebaseUser.displayName,
+      phone: firebaseUser.phoneNumber,
+      role,
     },
-    {
-      email: 'usuario@vaultpos.com',
-      password: 'user123',
-      full_name: 'Usuário Padrão',
-      role: 'user',
-    },
-  ];
+  }) as VaultAuthUser
+}
 
-  function ensureDefaultUsers() {
-    const existingUsers = getStoredUsers();
-    const mergedUsers = [...defaultUsers];
+function storedRole() {
+  return typeof window === 'undefined' ? 'user' : localStorage.getItem('vaultpos_user_role') || 'user'
+}
 
-    existingUsers.forEach((user) => {
-      if (!mergedUsers.some((item) => item.email === user.email)) {
-        mergedUsers.push(user);
-      }
-    });
+export const useAuthStore = defineStore('auth', () => {
+  const user = ref<VaultAuthUser | null>(null)
+  const loading = ref(false)
+  const error = ref<string | null>(null)
+  const initialized = ref(false)
+  const role = ref(storedRole())
+  let initPromise: Promise<void> | null = null
 
-    saveUsers(mergedUsers);
+  const session = computed(() => user.value ? { user: user.value } : null)
+  const isAuthenticated = computed(() => Boolean(user.value))
+  const userId = computed(() => user.value?.uid ?? null)
+  const userEmail = computed(() => user.value?.email ?? null)
+  const userRole = computed(() => role.value)
+  const isAdmin = computed(() => role.value === 'admin' || userEmail.value === 'admin@vaultpos.com')
+
+  function setRole(nextRole: string) {
+    role.value = nextRole || 'user'
+    if (typeof window !== 'undefined') localStorage.setItem('vaultpos_user_role', role.value)
+    if (user.value?.user_metadata) user.value.user_metadata.role = role.value
   }
 
-  function getStoredUsers(): LocalUser[] {
-    if (typeof window === 'undefined') {
-      return [];
-    }
-
-    const raw = window.localStorage.getItem(storageKey);
-    return raw ? JSON.parse(raw) : [];
-  }
-
-  function saveUsers(users: LocalUser[]) {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(storageKey, JSON.stringify(users));
-    }
-  }
-
-  function persistSession(nextSession: Session | null, nextUser: User | null) {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    session.value = nextSession;
-    user.value = nextUser;
-
-    if (nextSession && nextUser) {
-      window.localStorage.setItem(sessionKey, JSON.stringify({ user: nextUser, session: nextSession }));
-    } else {
-      window.localStorage.removeItem(sessionKey);
-    }
-  }
-
-  // Getters
-  const isAuthenticated = computed(() => !!session.value);
-  const userId = computed(() => user.value?.id ?? null);
-  const userEmail = computed(() => user.value?.email ?? null);
-  const userRole = computed(() => {
-    const metadataRole = (user.value as any)?.user_metadata?.role;
-    return metadataRole || 'user';
-  });
-  const isAdmin = computed(() => userRole.value === 'admin' || userEmail.value === 'admin@vaultpos.com');
-
-  // Inicializa sessão ao carregar o app
-  async function init() {
-    if (initialized.value) {
-      return;
-    }
-
-    ensureDefaultUsers();
-
-    if (typeof window !== 'undefined') {
-      const savedSession = window.localStorage.getItem(sessionKey);
-      if (savedSession) {
-        const parsed = JSON.parse(savedSession);
-        session.value = parsed.session;
-        user.value = parsed.user;
-      }
-    }
-
+  async function syncUserContext(firebaseUser: User) {
+    if (!firebaseUser.email) return false
     try {
-      const { data } = await supabase.auth.getSession();
-      if (data.session) {
-        persistSession(data.session, data.session.user);
-      }
-    } catch (error) {
-      console.error('Erro ao buscar sessão do Supabase:', error);
-    }
-
-    supabase.auth.onAuthStateChange((_event, newSession) => {
-      if (newSession) {
-        persistSession(newSession, newSession.user);
-        return;
-      }
-
-      // Nao sobrescreve uma sessao local (mock) com o estado "sem sessao" do Supabase real.
-      // Contas mock nunca existem de verdade no Supabase, entao o listener sempre reporta null.
-      const isLocalSession = session.value?.access_token === 'local-token';
-      if (isLocalSession) {
-        return;
-      }
-
-      persistSession(null, null);
-    });
-
-    initialized.value = true;
-  }
-
-  // Login
-  async function login(email: string, password: string) {
-    loading.value = true;
-    error.value = null;
-    try {
-      ensureDefaultUsers();
-      const normalizedEmail = email.trim().toLowerCase();
-      const localUsers = getStoredUsers();
-      const localUser = localUsers.find((item) => item.email === normalizedEmail && item.password === password);
-
-      if (localUser) {
-        const localSession = {
-          access_token: 'local-token',
-          token_type: 'bearer',
-          expires_in: 3600,
-          expires_at: Date.now() + 3600000,
-          user: {
-            id: `local-${normalizedEmail}`,
-            email: normalizedEmail,
-            user_metadata: { full_name: localUser.full_name || normalizedEmail, role: localUser.role || 'user' },
-          },
-        } as unknown as Session;
-
-        persistSession(localSession, localSession.user as User);
-        return;
-      }
-
-      const { data, error: err } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (err) throw err;
-      persistSession(data.session, data.user);
-    } catch (err: any) {
-      error.value = err.message;
-      throw err;
-    } finally {
-      loading.value = false;
+      const membership = await getUsuarioMembership(firebaseUser.uid)
+      if (!membership) return false
+      const profile = await getUsuarioById(membership.empresaId, firebaseUser.uid)
+      if (!profile) return false
+      setRole(profile.cargo)
+      if (typeof window !== 'undefined') localStorage.setItem('vaultpos_empresa_id', profile.empresa_id)
+      return true
+    } catch {
+      setRole(storedRole())
+      return false
     }
   }
 
-  async function register(email: string, password: string, metadata?: Record<string, unknown>) {
-    loading.value = true;
-    error.value = null;
-    try {
-      ensureDefaultUsers();
-      const normalizedEmail = email.trim().toLowerCase();
-      const existingUsers = getStoredUsers();
-      const alreadyExists = existingUsers.some((item) => item.email === normalizedEmail);
-
-      if (alreadyExists) {
-        throw new Error('Este e-mail já está cadastrado.');
-      }
-
-      const nextUsers: LocalUser[] = [
-        ...existingUsers,
-        {
-          email: normalizedEmail,
-          password,
-          full_name: metadata?.full_name as string | undefined,
-          role: 'user',
-        },
-      ];
-      saveUsers(nextUsers);
-
-      const localSession = {
-        access_token: 'local-token',
-        token_type: 'bearer',
-        expires_in: 3600,
-        expires_at: Date.now() + 3600000,
-        user: {
-          id: `local-${normalizedEmail}`,
-          email: normalizedEmail,
-          user_metadata: { ...(metadata ?? {}), role: 'user' },
-        },
-      } as unknown as Session;
-
-      persistSession(localSession, localSession.user as User);
-
-      try {
-        const { data, error: err } = await supabase.auth.signUp({
-          email: normalizedEmail,
-          password,
-          options: { data: metadata },
-        });
-        if (err) {
-          console.warn('Supabase signUp falhou, mas o cadastro local foi salvo:', err.message);
-          return { session: null, user: null };
+  async function init(): Promise<void> {
+    if (initialized.value) return
+    if (initPromise) return initPromise
+    initPromise = new Promise((resolve) => {
+      let firstEvent = true
+      onAuthChange((firebaseUser) => {
+        user.value = compatibleUser(firebaseUser, role.value)
+        if (firebaseUser) void syncUserContext(firebaseUser)
+        if (firstEvent) {
+          firstEvent = false
+          initialized.value = true
+          resolve()
         }
-        return data;
-      } catch (supabaseError) {
-        console.warn('Supabase signUp falhou, mas o cadastro local foi salvo:', supabaseError);
-        return { session: null, user: null };
+      })
+    })
+    return initPromise
+  }
+
+  async function login(email: string, password: string) {
+    loading.value = true
+    error.value = null
+    try {
+      const firebaseUser = await firebaseLogin(email.trim(), password)
+      user.value = compatibleUser(firebaseUser, role.value)
+      const hasProfile = await syncUserContext(firebaseUser)
+      if (!hasProfile && firebaseUser.email) {
+        const empresaId = firebaseUser.uid
+        const name = firebaseUser.displayName || firebaseUser.email.split('@')[0]
+        await createEmpresa(empresaId, { nome: `Empresa de ${name}`, email: firebaseUser.email })
+        await createUsuario(empresaId, {
+          id: firebaseUser.uid,
+          nome: name,
+          email: firebaseUser.email,
+          cargo: 'garcom',
+          foto: firebaseUser.photoURL,
+        })
+        if (typeof window !== 'undefined') localStorage.setItem('vaultpos_empresa_id', empresaId)
+        setRole('garcom')
       }
-    } catch (err: any) {
-      error.value = err.message;
-      throw err;
+      return firebaseUser
+    } catch (caught) {
+      error.value = traduzirErroFirebase(errorCode(caught))
+      throw caught
     } finally {
-      loading.value = false;
+      loading.value = false
     }
   }
 
-  // Logout
+  async function loginGoogle() {
+    loading.value = true
+    error.value = null
+    try {
+      const firebaseUser = await loginWithGoogle()
+      user.value = compatibleUser(firebaseUser, role.value)
+      const hasProfile = await syncUserContext(firebaseUser)
+      if (!hasProfile && firebaseUser.email) {
+        const empresaId = firebaseUser.uid
+        const name = firebaseUser.displayName || firebaseUser.email.split('@')[0]
+        await createEmpresa(empresaId, { nome: `Empresa de ${name}`, email: firebaseUser.email })
+        await createUsuario(empresaId, {
+          id: firebaseUser.uid,
+          nome: name,
+          email: firebaseUser.email,
+          cargo: 'garcom',
+          foto: firebaseUser.photoURL,
+        })
+        if (typeof window !== 'undefined') localStorage.setItem('vaultpos_empresa_id', empresaId)
+        setRole('garcom')
+      }
+      return firebaseUser
+    } catch (caught) {
+      error.value = traduzirErroFirebase(errorCode(caught))
+      throw caught
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function register(email: string, password: string, metadata: Record<string, unknown> = {}) {
+    loading.value = true
+    error.value = null
+    try {
+      const firebaseUser = await firebaseRegister(email.trim(), password, metadata)
+      const empresaId = firebaseUser.uid
+      const fullName = typeof metadata.full_name === 'string' ? metadata.full_name : email.split('@')[0]
+      await createEmpresa(empresaId, { nome: `Empresa de ${fullName}`, email: email.trim().toLowerCase() })
+      await createUsuario(empresaId, {
+        id: firebaseUser.uid,
+        nome: fullName,
+        email: email.trim().toLowerCase(),
+        telefone: typeof metadata.phone === 'string' ? metadata.phone : null,
+        cargo: 'garcom',
+      })
+      if (typeof window !== 'undefined') localStorage.setItem('vaultpos_empresa_id', empresaId)
+      setRole('garcom')
+      user.value = compatibleUser(firebaseUser, role.value)
+      return firebaseUser
+    } catch (caught) {
+      error.value = traduzirErroFirebase(errorCode(caught))
+      throw caught
+    } finally {
+      loading.value = false
+    }
+  }
+
   async function logout() {
-    loading.value = true;
-    error.value = null;
+    loading.value = true
+    error.value = null
     try {
-      try {
-        const { error: err } = await supabase.auth.signOut();
-        if (err) throw err;
-      } catch (supabaseError) {
-        console.warn('Erro ao encerrar sessão no Supabase:', supabaseError);
-      }
-
-      persistSession(null, null);
-    } catch (err: any) {
-      error.value = err.message;
-      throw err;
+      await firebaseLogout()
+      user.value = null
+      setRole('user')
+    } catch (caught) {
+      error.value = caught instanceof Error ? caught.message : 'Erro ao sair.'
+      throw caught
     } finally {
-      loading.value = false;
+      loading.value = false
     }
   }
 
-  // Recuperar senha
   async function forgotPassword(email: string) {
-    loading.value = true;
-    error.value = null;
+    loading.value = true
+    error.value = null
     try {
-      const { error: err } = await supabase.auth.resetPasswordForEmail(email);
-      if (err) throw err;
-    } catch (err: any) {
-      error.value = err.message;
-      throw err;
+      await firebaseForgotPassword(email.trim())
+    } catch (caught) {
+      error.value = traduzirErroFirebase(errorCode(caught))
+      throw caught
     } finally {
-      loading.value = false;
+      loading.value = false
     }
+  }
+
+  function errorCode(caught: unknown) {
+    return typeof caught === 'object' && caught && 'code' in caught ? String(caught.code) : ''
+  }
+
+  function traduzirErroFirebase(code: string): string {
+    const errors: Record<string, string> = {
+      'auth/user-not-found': 'Usuário não encontrado.',
+      'auth/wrong-password': 'Senha incorreta.',
+      'auth/invalid-credential': 'E-mail ou senha incorretos.',
+      'auth/invalid-email': 'E-mail inválido.',
+      'auth/user-disabled': 'Usuário desativado.',
+      'auth/too-many-requests': 'Muitas tentativas. Tente novamente mais tarde.',
+      'auth/email-already-in-use': 'E-mail já cadastrado.',
+      'auth/weak-password': 'Senha muito fraca. Mínimo 6 caracteres.',
+      'auth/popup-closed-by-user': 'Login cancelado.',
+      'auth/popup-blocked': 'O navegador bloqueou a janela do Google.',
+      'auth/network-request-failed': 'Erro de conexão. Verifique sua internet.',
+    }
+    return errors[code] ?? 'Erro ao autenticar. Tente novamente.'
   }
 
   return {
-    // State
     user,
     session,
     loading,
     error,
     initialized,
-    // Getters
     isAuthenticated,
     userId,
     userEmail,
     userRole,
     isAdmin,
-    // Actions
     init,
     login,
+    loginGoogle,
     register,
     logout,
     forgotPassword,
-  };
-});
+    setRole,
+  }
+})
