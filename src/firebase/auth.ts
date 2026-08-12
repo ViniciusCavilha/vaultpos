@@ -7,7 +7,6 @@ import {
   getAuth,
   onAuthStateChanged,
   reauthenticateWithCredential,
-  reauthenticateWithPopup,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signInWithPopup,
@@ -73,16 +72,6 @@ export async function createSecondaryUser(
 
 export async function logout() {
   await signOut(auth)
-}
-
-export async function reauthenticateWithGoogle() {
-  if (!auth.currentUser) throw new Error('Usuário não autenticado.')
-  const provider = new GoogleAuthProvider()
-  provider.setCustomParameters({ prompt: 'select_account' })
-  await withAuthTimeout(
-    reauthenticateWithPopup(auth.currentUser, provider),
-    'A confirmação com Google demorou demais. Tente novamente.',
-  )
 }
 
 export async function deleteCurrentUser() {

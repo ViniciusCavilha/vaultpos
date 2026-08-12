@@ -27,18 +27,32 @@
           <profile-section title="NOTIFICAÇÕES">
             <div v-for="option in notificationOptions" :key="option.key" class="toggle-row"><span><b>{{ option.title }}</b><small>{{ option.subtitle }}</small></span><ion-toggle v-model="notifications[option.key]" @ion-change="saveNotifications" /></div>
           </profile-section>
-          <button class="delete-account-button" type="button" @click="confirmDeleteAccount"><ion-icon :icon="trashOutline" />Excluir conta</button>
+          <button class="delete-account-button" type="button" @click="deleteConfirmOpen = true"><ion-icon :icon="trashOutline" />Excluir conta</button>
           <button class="logout-button" type="button" @click="confirmLogout">Sair</button>
         </template>
       </main>
     </ion-content>
+
+    <ion-modal :is-open="deleteConfirmOpen" class="delete-modal" @did-dismiss="deleteConfirmOpen = false">
+      <ion-content class="delete-modal-content">
+        <section class="delete-card">
+          <span class="delete-icon"><ion-icon :icon="trashOutline" /></span>
+          <h2>Excluir conta?</h2>
+          <p>Seu acesso e perfil serão removidos do VaultPOS. Essa ação não pode ser desfeita.</p>
+          <div class="delete-actions">
+            <button class="cancel-delete" type="button" :disabled="authStore.loading" @click="deleteConfirmOpen = false">Cancelar</button>
+            <button class="confirm-delete" type="button" :disabled="authStore.loading" @click="deleteAccount">{{ authStore.loading ? 'Excluindo...' : 'Sim, excluir' }}</button>
+          </div>
+        </section>
+      </ion-content>
+    </ion-modal>
   </ion-page>
 </template>
 
 <script setup lang="ts">
-import { IonContent, IonIcon, IonPage, IonToggle, alertController } from '@ionic/vue'
+import { IonContent, IonIcon, IonModal, IonPage, IonToggle, alertController } from '@ionic/vue'
 import { callOutline, cashOutline, chevronForwardOutline, mailOutline, peopleOutline, pulseOutline, trashOutline } from 'ionicons/icons'
-import { computed, defineComponent, h, onMounted, reactive } from 'vue'
+import { computed, defineComponent, h, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import VaultAvatar from '@/components/common/VaultAvatar.vue'
 import VaultBadge from '@/components/common/VaultBadge.vue'
@@ -55,6 +69,7 @@ const authStore = useAuthStore()
 const userStore = useUserStore()
 const comandasStore = useComandasStore()
 const { showToast } = useVaultToast()
+const deleteConfirmOpen = ref(false)
 const displayName = computed(() => userStore.nomeUsuario || String(authStore.user?.user_metadata?.full_name || 'Garçom'))
 const email = computed(() => userStore.usuario?.email || authStore.userEmail || '—')
 const phone = computed(() => userStore.usuario?.telefone || String(authStore.user?.user_metadata?.phone || 'Não informado'))
@@ -96,15 +111,22 @@ async function confirmLogout() {
   const alert = await alertController.create({ header: 'Sair?', message: 'Deseja encerrar sua sessão?', buttons: [{ text: 'Cancelar', role: 'cancel' }, { text: 'Sim, sair', role: 'destructive', handler: async () => { await authStore.logout(); userStore.clear(); await router.replace('/login') } }] })
   await alert.present()
 }
-async function confirmDeleteAccount() {
-  const alert = await alertController.create({ header: 'Excluir conta?', message: 'Sua conta de acesso e seu perfil serão removidos. Esta ação não pode ser desfeita.', buttons: [{ text: 'Cancelar', role: 'cancel' }, { text: 'Excluir conta', role: 'destructive', handler: async () => { try { await authStore.deleteAccount(userStore.empresaId); userStore.clear(); await showToast('Conta excluída com sucesso.', 'success'); await router.replace('/login') } catch { await showToast(authStore.error || 'Não foi possível excluir a conta.', 'error') } } }] })
-  await alert.present()
+async function deleteAccount() {
+  try {
+    await authStore.deleteAccount(userStore.empresaId)
+    deleteConfirmOpen.value = false
+    userStore.clear()
+    await showToast('Conta excluída com sucesso.', 'success')
+    await router.replace('/login')
+  } catch {
+    await showToast(authStore.error || 'Não foi possível excluir a conta.', 'error')
+  }
 }
 onMounted(async () => { loadNotifications(); await loadProfile() })
 </script>
 
 <style scoped>
-.profile-page{--background:#F8FAFC;--color:#111827}.page-shell{min-height:100%;padding:calc(56px + env(safe-area-inset-top)) 20px calc(104px + env(safe-area-inset-bottom))}header{display:flex;align-items:center;justify-content:space-between}header h1{margin:0;font-size:24px;font-weight:700}header button{border:0;border-radius:8px;padding:6px 14px;background:#F3F4F6;color:#111827;font:600 13px Inter}.identity{display:flex;align-items:center;margin-top:20px}.identity :deep(.vault-avatar){width:64px;height:64px;font-size:28px}.identity>div{margin-left:16px}.identity h2{margin:0;font-size:20px;font-weight:700}.identity p{margin:3px 0 0;color:#6B7280;font-size:13px}.identity span{display:flex;align-items:center;margin-top:4px;color:#22C55E;font-size:12px}.identity i{width:8px;height:8px;margin-right:6px;border-radius:50%;background:#22C55E}.stats-card{display:grid;grid-template-columns:repeat(3,1fr);margin-top:16px;border-radius:12px;padding:16px;background:#FFFFFF;box-shadow:0 1px 3px rgba(0,0,0,.06)}.stats-card div{display:flex;flex-direction:column;align-items:center;border-right:1px solid #F3F4F6;text-align:center}.stats-card div:last-child{border:0}.stats-card strong{font-size:22px;font-weight:700}.stats-card span{margin-top:3px;color:#9CA3AF;font-size:11px}.profile-section{display:block;margin-top:24px}.profile-section h3{margin:0 0 8px;color:#9CA3AF;font-size:11px;font-weight:600;letter-spacing:.5px}.section-card{overflow:hidden;border-radius:12px;background:#FFFFFF}.info-row,.toggle-row{display:flex;width:100%;min-height:68px;align-items:center;border:0;border-bottom:1px solid #F9FAFB;padding:16px;background:#FFFFFF;text-align:left}.info-row:last-child,.toggle-row:last-child{border-bottom:0}.info-row>ion-icon{flex:0 0 auto;color:#9CA3AF;font-size:20px}.info-row>span{display:flex;min-width:0;flex:1;flex-direction:column;margin-left:12px}.info-row small{color:#9CA3AF;font-size:10px;letter-spacing:.5px}.info-row b{overflow:hidden;margin-top:3px;color:#111827;font-size:14px;font-weight:400;text-overflow:ellipsis}.info-row b.accent{color:#991B1B}.info-row .trailing{color:#D1D5DB;font-size:16px}.toggle-row{justify-content:space-between}.toggle-row>span{display:flex;min-width:0;flex-direction:column;padding-right:12px}.toggle-row b{font-size:14px;font-weight:600}.toggle-row small{margin-top:3px;color:#9CA3AF;font-size:13px}.toggle-row ion-toggle{--track-background-checked:#991B1B;--handle-background-checked:#FFFFFF}.delete-account-button,.logout-button{display:flex;align-items:center;justify-content:center;margin:28px auto 0;border:0;padding:8px;background:transparent;color:#EF4444;font:600 15px Inter}.delete-account-button ion-icon{margin-right:6px;font-size:18px}.logout-button{margin-top:8px;color:#6B7280}
+.profile-page{--background:#F8FAFC;--color:#111827}.page-shell{min-height:100%;padding:calc(56px + env(safe-area-inset-top)) 20px calc(104px + env(safe-area-inset-bottom))}header{display:flex;align-items:center;justify-content:space-between}header h1{margin:0;font-size:24px;font-weight:700}header button{border:0;border-radius:8px;padding:6px 14px;background:#F3F4F6;color:#111827;font:600 13px Inter}.identity{display:flex;align-items:center;margin-top:20px}.identity :deep(.vault-avatar){width:64px;height:64px;font-size:28px}.identity>div{margin-left:16px}.identity h2{margin:0;font-size:20px;font-weight:700}.identity p{margin:3px 0 0;color:#6B7280;font-size:13px}.identity span{display:flex;align-items:center;margin-top:4px;color:#22C55E;font-size:12px}.identity i{width:8px;height:8px;margin-right:6px;border-radius:50%;background:#22C55E}.stats-card{display:grid;grid-template-columns:repeat(3,1fr);margin-top:16px;border-radius:12px;padding:16px;background:#FFFFFF;box-shadow:0 1px 3px rgba(0,0,0,.06)}.stats-card div{display:flex;flex-direction:column;align-items:center;border-right:1px solid #F3F4F6;text-align:center}.stats-card div:last-child{border:0}.stats-card strong{font-size:22px;font-weight:700}.stats-card span{margin-top:3px;color:#9CA3AF;font-size:11px}.profile-section{display:block;margin-top:24px}.profile-section h3{margin:0 0 8px;color:#9CA3AF;font-size:11px;font-weight:600;letter-spacing:.5px}.section-card{overflow:hidden;border-radius:12px;background:#FFFFFF}.info-row,.toggle-row{display:flex;width:100%;min-height:68px;align-items:center;border:0;border-bottom:1px solid #F9FAFB;padding:16px;background:#FFFFFF;text-align:left}.info-row:last-child,.toggle-row:last-child{border-bottom:0}.info-row>ion-icon{flex:0 0 auto;color:#9CA3AF;font-size:20px}.info-row>span{display:flex;min-width:0;flex:1;flex-direction:column;margin-left:12px}.info-row small{color:#9CA3AF;font-size:10px;letter-spacing:.5px}.info-row b{overflow:hidden;margin-top:3px;color:#111827;font-size:14px;font-weight:400;text-overflow:ellipsis}.info-row b.accent{color:#991B1B}.info-row .trailing{color:#D1D5DB;font-size:16px}.toggle-row{justify-content:space-between}.toggle-row>span{display:flex;min-width:0;flex-direction:column;padding-right:12px}.toggle-row b{font-size:14px;font-weight:600}.toggle-row small{margin-top:3px;color:#9CA3AF;font-size:13px}.toggle-row ion-toggle{--track-background-checked:#991B1B;--handle-background-checked:#FFFFFF}.delete-account-button,.logout-button{display:flex;align-items:center;justify-content:center;margin:28px auto 0;border:0;padding:8px;background:transparent;color:#EF4444;font:600 15px Inter}.delete-account-button ion-icon{margin-right:6px;font-size:18px}.logout-button{margin-top:8px;color:#6B7280}.delete-modal{--background:rgba(17,24,39,.42);--width:100%;--height:100%}.delete-modal-content{--background:transparent;--padding-start:24px;--padding-end:24px}.delete-modal-content::part(scroll){display:grid;min-height:100%;place-items:center}.delete-card{width:min(360px,100%);border-radius:20px;padding:24px;background:#FFFFFF;box-shadow:0 18px 45px rgba(17,24,39,.18);text-align:center}.delete-icon{display:grid;width:54px;height:54px;margin:0 auto 14px;place-items:center;border-radius:50%;background:#FEF2F2;color:#EF4444}.delete-icon ion-icon{font-size:24px}.delete-card h2{margin:0;color:#111827;font-size:20px}.delete-card p{margin:8px 0 0;color:#6B7280;font-size:14px;line-height:1.45}.delete-actions{display:grid;grid-template-columns:1fr;gap:10px;margin-top:22px}.delete-actions button{height:48px;border:0;border-radius:12px;font:600 14px Inter}.cancel-delete{background:#F3F4F6;color:#111827}.confirm-delete{background:#EF4444;color:#FFFFFF}.delete-actions button:disabled{opacity:.7}
 :deep(.profile-section h3){margin:0 0 8px;color:#9CA3AF;font-size:11px;font-weight:600;letter-spacing:.5px}
 :deep(.section-card){overflow:hidden;border-radius:12px;background:#FFFFFF}
 </style>

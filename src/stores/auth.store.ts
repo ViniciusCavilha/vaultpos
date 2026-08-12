@@ -9,7 +9,6 @@ import {
   loginWithGoogle,
   logout as firebaseLogout,
   onAuthChange,
-  reauthenticateWithGoogle,
   register as firebaseRegister,
 } from '@/firebase/auth'
 import { createEmpresa } from '@/firebase/collections/empresas'
@@ -284,9 +283,6 @@ export const useAuthStore = defineStore('auth', () => {
       if (!user.value?.uid) throw new Error('Usuário não autenticado.')
       const userToDelete = user.value
       const companyId = empresaId || (typeof window === 'undefined' ? null : localStorage.getItem('vaultpos_empresa_id'))
-      const usesGoogle = userToDelete.providerData.some((provider) => provider.providerId === 'google.com')
-
-      if (usesGoogle) await reauthenticateWithGoogle()
       if (companyId) await deleteUsuarioPermanent(companyId, userToDelete.uid)
       await deleteCurrentUser()
 
@@ -296,7 +292,7 @@ export const useAuthStore = defineStore('auth', () => {
     } catch (caught) {
       const code = errorCode(caught)
       error.value = code === 'auth/requires-recent-login'
-        ? 'Por segurança, entre novamente e tente excluir a conta de novo.'
+        ? 'Por segurança do Firebase, saia, entre novamente e tente excluir a conta de novo.'
         : caught instanceof Error ? caught.message : 'Erro ao excluir conta.'
       throw caught
     } finally {
