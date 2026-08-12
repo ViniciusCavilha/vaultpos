@@ -118,7 +118,7 @@
 
       <footer class="auth-footer">
         <span>Já tenho conta? </span>
-        <button type="button" @click="router.push('/login')">Entrar</button>
+        <button type="button" @click="goToLogin">Entrar</button>
       </footer>
     </div>
   </auth-layout>
@@ -208,6 +208,10 @@ function touch(field: FieldName) {
 const formValid = computed(() =>
   (Object.keys(touched) as FieldName[]).every((field) => !validate(field)),
 )
+
+async function goToLogin() {
+  await router.replace('/login')
+}
 
 async function handleRegister() {
   const fields = Object.keys(touched) as FieldName[]
