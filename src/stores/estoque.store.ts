@@ -1,9 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useUserStore } from './user.store'
-import { getProdutos } from '@/supabase/queries/produtos'
-import { getCategorias } from '@/supabase/queries/categorias'
-import { getMovimentacoes, movimentarEstoque } from '@/supabase/queries/estoque'
+import { getProdutos } from '@/firebase/collections/produtos'
+import { getCategorias } from '@/firebase/collections/categorias'
+import { getMovimentacoes, movimentarEstoque } from '@/firebase/collections/estoque'
 
 export const useEstoqueStore = defineStore('estoque', () => {
   // State
@@ -84,8 +84,7 @@ export const useEstoqueStore = defineStore('estoque', () => {
     loading.value = true
     error.value = null
     try {
-      await movimentarEstoque({
-        empresa_id: userStore.empresaId,
+      await movimentarEstoque(userStore.empresaId, {
         usuario_id: userStore.usuario.id,
         ...dados,
       })

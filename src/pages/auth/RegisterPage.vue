@@ -92,12 +92,17 @@ import AuthLayout from '@/layouts/AuthLayout.vue'
 import VaultButton from '@/components/common/VaultButton.vue'
 import VaultInput from '@/components/common/VaultInput.vue'
 import { useVaultToast } from '@/composables/useVaultToast'
-import { supabase } from '@/supabase/client'
+import { createEmpresa } from '@/firebase/collections/empresas'
+import { createUsuario } from '@/firebase/collections/usuarios'
+import { useAuthStore } from '@/stores/auth.store'
+import { useUserStore } from '@/stores/user.store'
 
 type Field = 'name' | 'email' | 'phone' | 'password' | 'confirmPassword'
 
 const router = useRouter()
 const { showToast } = useVaultToast()
+const authStore = useAuthStore()
+const userStore = useUserStore()
 const loading = ref(false)
 const showPassword = ref(false)
 const showConfirmation = ref(false)
@@ -131,14 +136,24 @@ async function submitRegister() {
 
   loading.value = true
   try {
-    const { error } = await supabase.auth.signUp({
-      email: form.email.trim(),
-      password: form.password,
-      options: { data: { nome: form.name.trim(), telefone: form.phone.trim() } },
+    const email = form.email.trim().toLowerCase()
+    const user = await authStore.register(email, form.password)
+    await createUsuario(user.uid, {
+      nome: form.name.trim(),
+      email,
+      telefone: form.phone.trim() || null,
+      cargo: 'admin',
+      authUid: user.uid,
     })
-    if (error) throw error
+    await createEmpresa(user.uid, {
+      nome: `Empresa de ${form.name.trim()}`,
+      telefone: form.phone.trim(),
+      email,
+    })
+    localStorage.setItem('vaultpos:empresaId', user.uid)
+    await userStore.fetchUsuarioLogado()
     await showToast('Conta criada com sucesso!', 'success')
-    await router.replace('/login')
+    await router.replace('/admin/dashboard')
   } catch (error) {
     await showToast(error instanceof Error ? error.message : 'Não foi possível criar a conta.', 'error')
   } finally {

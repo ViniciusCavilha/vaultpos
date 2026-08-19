@@ -1,11 +1,12 @@
 import {
-  addDoc,
   collection,
+  collectionGroup,
   doc,
   getDoc,
   getDocs,
   query,
   serverTimestamp,
+  setDoc,
   updateDoc,
   where,
 } from 'firebase/firestore'
@@ -49,13 +50,25 @@ function mapUser(
 }
 
 export async function getUsuarios(empresaId: string): Promise<FirebaseUsuario[]> {
-  const snapshot = await getDocs(
-    query(usersCollection(empresaId), where('ativo', '==', true)),
-  )
+  const snapshot = await getDocs(usersCollection(empresaId))
 
   return snapshot.docs
     .map((item) => mapUser(empresaId, item.id, item.data()))
     .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+}
+
+export async function findUsuarioByAuthUid(
+  authUid: string,
+): Promise<FirebaseUsuario | null> {
+  const snapshot = await getDocs(
+    query(collectionGroup(db, 'usuarios'), where('authUid', '==', authUid)),
+  )
+  const match = snapshot.docs[0]
+  const empresaId = match?.ref.parent.parent?.id
+
+  return match && empresaId
+    ? mapUser(empresaId, match.id, match.data())
+    : null
 }
 
 export async function getUsuarioById(
@@ -87,10 +100,14 @@ export async function createUsuario(
     telefone?: string | null
     cargo: CargoUsuario
     foto?: string | null
+    authUid?: string
   },
 ): Promise<FirebaseUsuario> {
-  const reference = await addDoc(
-    usersCollection(empresaId),
+  const reference = dados.authUid
+    ? doc(usersCollection(empresaId), dados.authUid)
+    : doc(usersCollection(empresaId))
+  await setDoc(
+    reference,
     withoutUndefined({
       ...dados,
       empresaId,

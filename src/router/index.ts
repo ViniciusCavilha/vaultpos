@@ -1,26 +1,29 @@
 import { createRouter, createWebHistory } from '@ionic/vue-router';
 import { RouteRecordRaw } from 'vue-router';
 
-import TabsAdmin from '../views/TabsAdmin.vue';
-import TabsGarcom from '../views/TabsGarcom.vue';
-import LoginPage from '../pages/auth/LoginPage.vue';
-import RegisterPage from '../pages/auth/RegisterPage.vue';
-import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage.vue';
-import DashboardAdmin from '../pages/admin/DashboardAdmin.vue';
-import EmpresaPage from '../pages/admin/EmpresaPage.vue';
-import EstoqueAdminPage from '../pages/admin/EstoquePage.vue';
-import FinanceiroPage from '../pages/admin/FinanceiroPage.vue';
-import ProdutosPage from '../pages/admin/ProdutosPage.vue';
-import RelatoriosPage from '../pages/admin/RelatoriosPage.vue';
-import UsuariosPage from '../pages/admin/UsuariosPage.vue';
-import ConfiguracoesPage from '../pages/admin/ConfiguracoesPage.vue';
-import DashboardGarcom from '../pages/garcom/DashboardGarcom.vue';
-import ComandasPage from '../pages/garcom/ComandasPage.vue';
-import ComandaDetalhesPage from '../pages/garcom/ComandaDetalhesPage.vue';
-import NovaComandaPage from '../pages/garcom/NovaComandaPage.vue';
-import PagamentosPage from '../pages/garcom/PagamentosPage.vue';
-import EstoqueGarcomPage from '../pages/garcom/EstoquePage.vue';
-import PerfilPage from '../pages/garcom/PerfilPage.vue';
+import { useAuthStore } from '@/stores/auth.store';
+import { useUserStore } from '@/stores/user.store';
+
+const TabsAdmin = () => import('../views/TabsAdmin.vue')
+const TabsGarcom = () => import('../views/TabsGarcom.vue')
+const LoginPage = () => import('../pages/auth/LoginPage.vue')
+const RegisterPage = () => import('../pages/auth/RegisterPage.vue')
+const ForgotPasswordPage = () => import('../pages/auth/ForgotPasswordPage.vue')
+const DashboardAdmin = () => import('../pages/admin/DashboardAdmin.vue')
+const EmpresaPage = () => import('../pages/admin/EmpresaPage.vue')
+const EstoqueAdminPage = () => import('../pages/admin/EstoquePage.vue')
+const FinanceiroPage = () => import('../pages/admin/FinanceiroPage.vue')
+const ProdutosPage = () => import('../pages/admin/ProdutosPage.vue')
+const RelatoriosPage = () => import('../pages/admin/RelatoriosPage.vue')
+const UsuariosPage = () => import('../pages/admin/UsuariosPage.vue')
+const ConfiguracoesPage = () => import('../pages/admin/ConfiguracoesPage.vue')
+const DashboardGarcom = () => import('../pages/garcom/DashboardGarcom.vue')
+const ComandasPage = () => import('../pages/garcom/ComandasPage.vue')
+const ComandaDetalhesPage = () => import('../pages/garcom/ComandaDetalhesPage.vue')
+const NovaComandaPage = () => import('../pages/garcom/NovaComandaPage.vue')
+const PagamentosPage = () => import('../pages/garcom/PagamentosPage.vue')
+const EstoqueGarcomPage = () => import('../pages/garcom/EstoquePage.vue')
+const PerfilPage = () => import('../pages/garcom/PerfilPage.vue')
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -30,21 +33,25 @@ const routes: Array<RouteRecordRaw> = [
   {
     path: '/login',
     name: 'Login',
-    component: LoginPage
+    component: LoginPage,
+    meta: { publicOnly: true }
   },
   {
     path: '/register',
     name: 'Register',
-    component: RegisterPage
+    component: RegisterPage,
+    meta: { publicOnly: true }
   },
   {
     path: '/forgot-password',
     name: 'ForgotPassword',
-    component: ForgotPasswordPage
+    component: ForgotPasswordPage,
+    meta: { publicOnly: true }
   },
   {
     path: '/admin',
     component: TabsAdmin,
+    meta: { requiresAuth: true, role: 'admin' },
     children: [
       {
         path: '',
@@ -95,6 +102,7 @@ const routes: Array<RouteRecordRaw> = [
   {
     path: '/garcom',
     component: TabsGarcom,
+    meta: { requiresAuth: true, role: 'garcom' },
     children: [
       {
         path: '',
@@ -142,6 +150,41 @@ const routes: Array<RouteRecordRaw> = [
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes
+})
+
+router.beforeEach(async (to) => {
+  const authStore = useAuthStore()
+  const userStore = useUserStore()
+
+  await authStore.init()
+
+  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+    return { path: '/login', query: { redirect: to.fullPath } }
+  }
+
+  if (authStore.isAuthenticated && !userStore.usuario) {
+    try {
+      await userStore.fetchUsuarioLogado()
+    } catch {
+      if (to.meta.requiresAuth) {
+        await authStore.logout()
+        userStore.clear()
+        return '/login'
+      }
+    }
+  }
+
+  if (to.meta.publicOnly && userStore.usuario) {
+    return userStore.isAdmin ? '/admin/dashboard' : '/garcom/dashboard'
+  }
+
+  if (to.meta.role === 'admin' && !userStore.isAdmin) {
+    return '/garcom/dashboard'
+  }
+
+  if (to.meta.role === 'garcom' && !userStore.isGarcom) {
+    return '/admin/dashboard'
+  }
 })
 
 export default router

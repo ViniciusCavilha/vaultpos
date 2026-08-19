@@ -1,99 +1,136 @@
-import { defineStore } from "pinia";
-import { ref, computed } from "vue";
-import { supabase } from "@/supabase/client";
-import type { User, Session } from "@supabase/supabase-js";
+import { computed, ref } from 'vue'
+import { defineStore } from 'pinia'
+import type { User } from 'firebase/auth'
+import {
+  forgotPassword as sendPasswordReset,
+  getCurrentUser,
+  login as firebaseLogin,
+  loginWithGoogle,
+  logout as firebaseLogout,
+  onAuthChange,
+  register as firebaseRegister,
+} from '@/firebase/auth'
 
-export const useAuthStore = defineStore("auth", () => {
-  // State
-  const user = ref<User | null>(null);
-  const session = ref<Session | null>(null);
-  const loading = ref(false);
-  const error = ref<string | null>(null);
+function errorMessage(error: unknown): string {
+  if (!(error instanceof Error)) return 'Ocorreu um erro inesperado.'
 
-  // Getters
-  const isAuthenticated = computed(() => !!session.value);
-  const userId = computed(() => user.value?.id ?? null);
-  const userEmail = computed(() => user.value?.email ?? null);
+  const messages: Record<string, string> = {
+    'auth/email-already-in-use': 'Este e-mail já está cadastrado.',
+    'auth/invalid-credential': 'E-mail ou senha inválidos.',
+    'auth/invalid-email': 'Informe um e-mail válido.',
+    'auth/popup-closed-by-user': 'A janela de login foi fechada.',
+    'auth/too-many-requests': 'Muitas tentativas. Tente novamente mais tarde.',
+    'auth/weak-password': 'A senha precisa ter pelo menos 6 caracteres.',
+  }
+  const code = 'code' in error ? String(error.code) : ''
+  return messages[code] ?? error.message
+}
 
-  // Inicializa sessão ao carregar o app
-  async function init() {
-    const { data } = await supabase.auth.getSession();
-    session.value = data.session;
-    user.value = data.session?.user ?? null;
+export const useAuthStore = defineStore('auth', () => {
+  const user = ref<User | null>(null)
+  const loading = ref(false)
+  const initialized = ref(false)
+  const error = ref<string | null>(null)
+  let initPromise: Promise<void> | null = null
 
-    // Ouve mudanças de sessão em tempo real
-    supabase.auth.onAuthStateChange((_event, newSession) => {
-      session.value = newSession;
-      user.value = newSession?.user ?? null;
-    });
+  const isAuthenticated = computed(() => Boolean(user.value))
+  const userId = computed(() => user.value?.uid ?? null)
+  const userEmail = computed(() => user.value?.email ?? null)
+
+  function init(): Promise<void> {
+    if (initPromise) return initPromise
+
+    initPromise = new Promise((resolve) => {
+      onAuthChange((currentUser) => {
+        user.value = currentUser
+        initialized.value = true
+        resolve()
+      })
+    })
+    user.value = getCurrentUser()
+    return initPromise
   }
 
-  // Login
   async function login(email: string, password: string) {
-    loading.value = true;
-    error.value = null;
+    loading.value = true
+    error.value = null
     try {
-      const { data, error: err } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (err) throw err;
-      session.value = data.session;
-      user.value = data.user;
-    } catch (err: any) {
-      error.value = err.message;
-      throw err;
+      user.value = await firebaseLogin(email, password)
+    } catch (caught) {
+      error.value = errorMessage(caught)
+      throw new Error(error.value)
     } finally {
-      loading.value = false;
+      loading.value = false
     }
   }
 
-  // Logout
+  async function loginGoogle() {
+    loading.value = true
+    error.value = null
+    try {
+      user.value = await loginWithGoogle()
+    } catch (caught) {
+      error.value = errorMessage(caught)
+      throw new Error(error.value)
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function register(email: string, password: string) {
+    loading.value = true
+    error.value = null
+    try {
+      user.value = await firebaseRegister(email, password)
+      return user.value
+    } catch (caught) {
+      error.value = errorMessage(caught)
+      throw new Error(error.value)
+    } finally {
+      loading.value = false
+    }
+  }
+
   async function logout() {
-    loading.value = true;
-    error.value = null;
+    loading.value = true
+    error.value = null
     try {
-      const { error: err } = await supabase.auth.signOut();
-      if (err) throw err;
-      session.value = null;
-      user.value = null;
-    } catch (err: any) {
-      error.value = err.message;
-      throw err;
+      await firebaseLogout()
+      user.value = null
+    } catch (caught) {
+      error.value = errorMessage(caught)
+      throw new Error(error.value)
     } finally {
-      loading.value = false;
+      loading.value = false
     }
   }
 
-  // Recuperar senha
   async function forgotPassword(email: string) {
-    loading.value = true;
-    error.value = null;
+    loading.value = true
+    error.value = null
     try {
-      const { error: err } = await supabase.auth.resetPasswordForEmail(email);
-      if (err) throw err;
-    } catch (err: any) {
-      error.value = err.message;
-      throw err;
+      await sendPasswordReset(email)
+    } catch (caught) {
+      error.value = errorMessage(caught)
+      throw new Error(error.value)
     } finally {
-      loading.value = false;
+      loading.value = false
     }
   }
 
   return {
-    // State
     user,
-    session,
     loading,
+    initialized,
     error,
-    // Getters
     isAuthenticated,
     userId,
     userEmail,
-    // Actions
     init,
     login,
+    loginGoogle,
+    register,
     logout,
     forgotPassword,
-  };
-});
+  }
+})

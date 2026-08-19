@@ -1,0 +1,48 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userDocument(empresaId) {
+      return firestore.get(
+        /databases/(default)/documents/empresas/$(empresaId)/usuarios/$(request.auth.uid)
+      );
+    }
+
+    function isMember(empresaId) {
+      return signedIn()
+        && userDocument(empresaId).data.ativo == true;
+    }
+
+    function isAdmin(empresaId) {
+      return isMember(empresaId)
+        && userDocument(empresaId).data.cargo == 'admin';
+    }
+
+    function isValidImage() {
+      return request.resource != null
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    match /produtos/{empresaId}/{fileName} {
+      allow read: if isMember(empresaId);
+      allow write: if isAdmin(empresaId) && isValidImage();
+    }
+
+    match /empresas/{empresaId}/{fileName} {
+      allow read: if isMember(empresaId);
+      allow write: if isAdmin(empresaId) && isValidImage();
+    }
+
+    match /usuarios/{usuarioId}/{fileName} {
+      allow read: if signedIn();
+      allow write: if signedIn()
+        && usuarioId == request.auth.uid
+        && isValidImage();
+    }
+  }
+}

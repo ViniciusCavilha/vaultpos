@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useUserStore } from './user.store'
-import { getPagamentos, createPagamento } from '@/supabase/queries/pagamentos'
+import { getPagamentos, createPagamento } from '@/firebase/collections/pagamentos'
 
 export const useFinanceiroStore = defineStore('financeiro', () => {
   // State
@@ -59,8 +59,7 @@ export const useFinanceiroStore = defineStore('financeiro', () => {
     loading.value = true
     error.value = null
     try {
-      const pagamento = await createPagamento({
-        empresa_id: userStore.empresaId,
+      const pagamento = await createPagamento(userStore.empresaId, {
         recebido_por: userStore.usuario.id,
         ...dados,
       })

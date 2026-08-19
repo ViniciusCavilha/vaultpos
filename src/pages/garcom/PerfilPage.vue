@@ -89,8 +89,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { IonAlert, IonContent, IonIcon, IonPage, IonToggle } from '@ionic/vue'
+import { IonAlert, IonContent, IonIcon, IonPage, IonToggle, useIonRouter } from '@ionic/vue'
 import {
   calendarOutline,
   callOutline,
@@ -108,7 +107,7 @@ import { useAuthStore } from '@/stores/auth.store'
 import { useComandasStore } from '@/stores/comandas.store'
 import { useUserStore } from '@/stores/user.store'
 
-const router = useRouter()
+const ionRouter = useIonRouter()
 const authStore = useAuthStore()
 const userStore = useUserStore()
 const comandasStore = useComandasStore()
@@ -155,9 +154,10 @@ function saveNotifications() {
   localStorage.setItem('vaultpos-garcom-notifications', JSON.stringify(notifications))
 }
 async function logout() {
+  logoutAlertOpen.value = false
   await authStore.logout()
   userStore.clear()
-  await router.replace('/login')
+  ionRouter.navigate('/login', 'root', 'replace')
 }
 async function load() {
   if (!userStore.usuario) await userStore.fetchUsuarioLogado()

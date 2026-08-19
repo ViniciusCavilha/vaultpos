@@ -56,7 +56,7 @@ import VaultErrorState from '@/components/common/VaultErrorState.vue'
 import VaultInput from '@/components/common/VaultInput.vue'
 import VaultSkeleton from '@/components/common/VaultSkeleton.vue'
 import { useVaultToast } from '@/composables/useVaultToast'
-import { createProduto, deleteProduto, updateProduto } from '@/supabase/queries/produtos'
+import { createProduto, deleteProduto, updateProduto } from '@/firebase/collections/produtos'
 import { useEstoqueStore } from '@/stores/estoque.store'
 import { useUserStore } from '@/stores/user.store'
 
@@ -84,9 +84,9 @@ async function save(){
  if(!form.nome.trim()||!userStore.empresaId||saving.value)return
  saving.value=true
  const payload={nome:form.nome.trim(),categoria_id:form.categoria_id||null,preco:Number(form.preco)||0,custo:Number(form.custo)||0,estoque:Number(form.estoque)||0,estoque_minimo:Number(form.estoque_minimo)||0,unidade:form.unidade,codigo:form.codigo||null,descricao:form.descricao||null,ativo:true}
- try{if(selected.value)await updateProduto(selected.value.id,payload);else await createProduto({...payload,empresa_id:userStore.empresaId,imagem:null});await estoqueStore.fetchProdutos();closeModal();await showToast('Produto salvo com sucesso!','success')}catch(e){await showToast(e instanceof Error?e.message:'Erro ao salvar produto.','error')}finally{saving.value=false}
+ try{if(selected.value)await updateProduto(userStore.empresaId,selected.value.id,payload);else await createProduto(userStore.empresaId,{...payload,imagem:null});await estoqueStore.fetchProdutos();closeModal();await showToast('Produto salvo com sucesso!','success')}catch(e){await showToast(e instanceof Error?e.message:'Erro ao salvar produto.','error')}finally{saving.value=false}
 }
-async function remove(){if(!selected.value)return;try{await deleteProduto(selected.value.id);await estoqueStore.fetchProdutos();closeModal();await showToast('Produto excluído.','success')}catch(e){await showToast(e instanceof Error?e.message:'Erro ao excluir produto.','error')}}
+async function remove(){if(!selected.value||!userStore.empresaId)return;try{await deleteProduto(userStore.empresaId,selected.value.id);await estoqueStore.fetchProdutos();closeModal();await showToast('Produto excluído.','success')}catch(e){await showToast(e instanceof Error?e.message:'Erro ao excluir produto.','error')}}
 onMounted(load)
 </script>
 

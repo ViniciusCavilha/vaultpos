@@ -1,0 +1,97 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function memberPath(empresaId) {
+      return /databases/$(database)/documents/empresas/$(empresaId)/usuarios/$(request.auth.uid);
+    }
+
+    function isMember(empresaId) {
+      return signedIn()
+        && exists(memberPath(empresaId))
+        && get(memberPath(empresaId)).data.ativo == true;
+    }
+
+    function isAdmin(empresaId) {
+      return isMember(empresaId)
+        && get(memberPath(empresaId)).data.cargo == 'admin';
+    }
+
+    function isOwner(empresaId) {
+      return signedIn()
+        && get(/databases/$(database)/documents/empresas/$(empresaId)).data.ownerUid
+          == request.auth.uid;
+    }
+
+    match /{path=**}/usuarios/{usuarioId} {
+      allow read: if signedIn() && resource.data.authUid == request.auth.uid;
+    }
+
+    match /empresas/{empresaId} {
+      allow create: if signedIn()
+        && empresaId == request.auth.uid
+        && request.resource.data.ownerUid == request.auth.uid;
+      allow read: if isMember(empresaId)
+        || (signedIn() && resource.data.ownerUid == request.auth.uid);
+      allow update, delete: if isAdmin(empresaId);
+
+      match /usuarios/{usuarioId} {
+        allow read: if isMember(empresaId);
+        allow create: if isAdmin(empresaId)
+          || (signedIn()
+            && empresaId == request.auth.uid
+            && usuarioId == request.auth.uid
+            && request.resource.data.authUid == request.auth.uid
+            && request.resource.data.cargo == 'admin');
+        allow update: if isAdmin(empresaId)
+          || (signedIn()
+            && usuarioId == request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['nome', 'telefone', 'foto', 'ultimoLogin']));
+        allow delete: if isAdmin(empresaId);
+      }
+
+      match /configuracoes/{configId} {
+        allow read: if isMember(empresaId) || isOwner(empresaId);
+        allow create: if isAdmin(empresaId)
+          || (signedIn() && empresaId == request.auth.uid);
+        allow update, delete: if isAdmin(empresaId);
+      }
+
+      match /categorias/{documentId} {
+        allow read: if isMember(empresaId);
+        allow write: if isAdmin(empresaId);
+      }
+
+      match /produtos/{documentId} {
+        allow read: if isMember(empresaId);
+        allow write: if isAdmin(empresaId);
+      }
+
+      match /clientes/{documentId} {
+        allow read, write: if isMember(empresaId);
+      }
+
+      match /comandas/{comandaId} {
+        allow read, write: if isMember(empresaId);
+
+        match /itens/{itemId} {
+          allow read, write: if isMember(empresaId);
+        }
+      }
+
+      match /pagamentos/{documentId} {
+        allow read, write: if isMember(empresaId);
+      }
+
+      match /movimentacoes/{documentId} {
+        allow read: if isMember(empresaId);
+        allow create: if isAdmin(empresaId);
+      }
+    }
+  }
+}

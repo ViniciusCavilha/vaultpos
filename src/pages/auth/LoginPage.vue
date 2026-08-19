@@ -41,6 +41,17 @@
             :disabled="!email || !password"
             @click="submitLogin"
           />
+
+          <div class="auth-divider"><span>ou</span></div>
+          <button
+            class="google-button"
+            type="button"
+            :disabled="authStore.loading"
+            @click="submitGoogleLogin"
+          >
+            <ion-icon :icon="logoGoogle" />
+            Continuar com Google
+          </button>
         </form>
 
         <div class="demo-actions">
@@ -62,7 +73,7 @@
     <ion-toast
       :is-open="toastOpen"
       position="top"
-      :message="authStore.error ?? 'Não foi possível entrar.'"
+      :message="authStore.error ?? userStore.error ?? 'Não foi possível entrar.'"
       :duration="3000"
       color="danger"
       @did-dismiss="toastOpen = false"
@@ -73,8 +84,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { IonToast } from '@ionic/vue'
-import { eyeOffOutline, eyeOutline, lockClosedOutline, mailOutline } from 'ionicons/icons'
+import { IonIcon, IonToast } from '@ionic/vue'
+import { eyeOffOutline, eyeOutline, lockClosedOutline, logoGoogle, mailOutline } from 'ionicons/icons'
 import AuthLayout from '@/layouts/AuthLayout.vue'
 import VaultButton from '@/components/common/VaultButton.vue'
 import VaultInput from '@/components/common/VaultInput.vue'
@@ -96,6 +107,9 @@ async function submitLogin() {
     await userStore.fetchUsuarioLogado()
     await router.replace(userStore.isAdmin ? '/admin/dashboard' : '/garcom/dashboard')
   } catch {
+    if (authStore.isAuthenticated && !userStore.usuario) {
+      await authStore.logout()
+    }
     toastOpen.value = true
   }
 }
@@ -104,6 +118,20 @@ async function demoLogin(role: 'admin' | 'garcom') {
   email.value = role === 'admin' ? 'admin@vaultpos.com' : 'garcom@vaultpos.com'
   password.value = 'vaultpos123'
   await submitLogin()
+}
+
+async function submitGoogleLogin() {
+  if (authStore.loading) return
+  try {
+    await authStore.loginGoogle()
+    await userStore.fetchUsuarioLogado()
+    await router.replace(userStore.isAdmin ? '/admin/dashboard' : '/garcom/dashboard')
+  } catch {
+    if (authStore.isAuthenticated && !userStore.usuario) {
+      await authStore.logout()
+    }
+    toastOpen.value = true
+  }
 }
 </script>
 
@@ -119,6 +147,10 @@ h1 { margin: 0; color: #111827; font-size: 28px; font-weight: 700; line-height: 
 .password-field { margin-top: 16px; }
 .forgot-link { display: block; margin: 10px 0 0 auto; padding: 0; border: 0; background: transparent; color: #991B1B; font: 400 13px 'Inter', sans-serif; }
 .login-button { margin-top: 24px; }
+.auth-divider { display: flex; align-items: center; gap: 12px; margin: 18px 0; color: #9CA3AF; font-size: 12px; }
+.auth-divider::before,.auth-divider::after { height: 1px; flex: 1; background: #E5E7EB; content: ''; }
+.google-button { display: flex; width: 100%; height: 52px; align-items: center; justify-content: center; gap: 10px; border: 1px solid #E5E7EB; border-radius: 12px; background: #FFFFFF; color: #111827; font: 600 14px 'Inter', sans-serif; }
+.google-button ion-icon { width: 19px; height: 19px; color: #EF4444; }
 .demo-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
 .demo-actions button {
   height: 44px;

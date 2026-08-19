@@ -12,7 +12,7 @@
       </ion-tab-button>
     </ion-tab-bar>
 
-    <ion-modal :is-open="moreOpen" :initial-breakpoint="0.58" :breakpoints="[0, 0.58]" @did-dismiss="moreOpen = false">
+    <ion-modal :is-open="moreOpen" :initial-breakpoint="0.58" :breakpoints="[0, 0.58]" @did-dismiss="onMoreDismiss">
       <div class="more-sheet">
         <div class="handle"></div>
         <button v-for="item in moreItems" :key="item.path" type="button" :class="{ settings: item.path.includes('configuracoes') }" @click="navigate(item.path)">
@@ -20,7 +20,7 @@
           <i v-if="item.path.includes('configuracoes')" class="settings-dot"></i>
           <ion-icon v-else :icon="chevronForward" />
         </button>
-        <button class="logout" type="button" @click="logoutAlertOpen = true">
+        <button class="logout" type="button" @click="requestLogout">
           <ion-icon :icon="logOutOutline" /><span>Sair</span>
         </button>
       </div>
@@ -32,7 +32,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { IonAlert, IonIcon, IonLabel, IonModal, IonRouterOutlet, IonTabBar, IonTabButton, IonTabs } from '@ionic/vue'
+import { IonAlert, IonIcon, IonLabel, IonModal, IonRouterOutlet, IonTabBar, IonTabButton, IonTabs, useIonRouter } from '@ionic/vue'
 import {
   bag, bagOutline, barChartOutline, businessOutline, card, cardOutline, chevronForward,
   cube, cubeOutline, ellipsisHorizontal, home, homeOutline, logOutOutline, peopleOutline, settingsOutline,
@@ -42,10 +42,12 @@ import { useUserStore } from '@/stores/user.store'
 
 const route = useRoute()
 const router = useRouter()
+const ionRouter = useIonRouter()
 const authStore = useAuthStore()
 const userStore = useUserStore()
 const moreOpen = ref(false)
 const logoutAlertOpen = ref(false)
+const logoutPending = ref(false)
 const tabs = [
   { key: 'admin-dashboard', path: '/admin/dashboard', label: 'Inicio', icon: home, outline: homeOutline },
   { key: 'admin-produtos', path: '/admin/produtos', label: 'Produtos', icon: bag, outline: bagOutline },
@@ -64,7 +66,19 @@ const logoutButtons = [
 ]
 function isActive(path: string) { return route.path === path }
 async function navigate(path: string) { moreOpen.value = false; await router.push(path) }
-async function logout() { moreOpen.value = false; await authStore.logout(); userStore.clear(); await router.replace('/login') }
+function requestLogout() { logoutPending.value = true; moreOpen.value = false }
+function onMoreDismiss() {
+  moreOpen.value = false
+  if (!logoutPending.value) return
+  logoutPending.value = false
+  logoutAlertOpen.value = true
+}
+async function logout() {
+  logoutAlertOpen.value = false
+  await authStore.logout()
+  userStore.clear()
+  ionRouter.navigate('/login', 'root', 'replace')
+}
 </script>
 
 <style scoped>

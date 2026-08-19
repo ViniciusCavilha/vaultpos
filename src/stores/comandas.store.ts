@@ -10,7 +10,7 @@ import {
   updateItemQuantidade,
   fecharComanda,
   cancelarComanda,
-} from '@/supabase/queries/comandas'
+} from '@/firebase/collections/comandas'
 
 export const useComandasStore = defineStore('comandas', () => {
   // State
@@ -46,10 +46,13 @@ export const useComandasStore = defineStore('comandas', () => {
 
   // Buscar comanda específica com itens
   async function fetchComandaById(id: string) {
+    const userStore = useUserStore()
+    if (!userStore.empresaId) return
+
     loading.value = true
     error.value = null
     try {
-      comandaAtiva.value = await getComandaById(id)
+      comandaAtiva.value = await getComandaById(userStore.empresaId, id)
     } catch (err: any) {
       error.value = err.message
     } finally {
@@ -69,8 +72,7 @@ export const useComandasStore = defineStore('comandas', () => {
     loading.value = true
     error.value = null
     try {
-      const novaComanda = await createComanda({
-        empresa_id: userStore.empresaId,
+      const novaComanda = await createComanda(userStore.empresaId, {
         garcom_id: userStore.usuario.id,
         ...dados,
       })
@@ -90,12 +92,17 @@ export const useComandasStore = defineStore('comandas', () => {
     quantidade: number
     valor_unitario: number
   }) {
-    if (!comandaAtiva.value) return
+    const userStore = useUserStore()
+    if (!comandaAtiva.value || !userStore.empresaId) return
 
     loading.value = true
     error.value = null
     try {
-      await addItemComanda({ comanda_id: comandaAtiva.value.id, ...item })
+      await addItemComanda(
+        userStore.empresaId,
+        comandaAtiva.value.id,
+        item,
+      )
       await fetchComandaById(comandaAtiva.value.id) // recarrega com totais atualizados
     } catch (err: any) {
       error.value = err.message
@@ -107,12 +114,13 @@ export const useComandasStore = defineStore('comandas', () => {
 
   // Remover item da comanda ativa
   async function removerItem(itemId: string) {
-    if (!comandaAtiva.value) return
+    const userStore = useUserStore()
+    if (!comandaAtiva.value || !userStore.empresaId) return
 
     loading.value = true
     error.value = null
     try {
-      await removeItemComanda(itemId, comandaAtiva.value.id)
+      await removeItemComanda(userStore.empresaId, comandaAtiva.value.id, itemId)
       await fetchComandaById(comandaAtiva.value.id)
     } catch (err: any) {
       error.value = err.message
@@ -124,12 +132,19 @@ export const useComandasStore = defineStore('comandas', () => {
 
   // Atualizar quantidade de item
   async function atualizarQuantidade(itemId: string, quantidade: number, valorUnitario: number) {
-    if (!comandaAtiva.value) return
+    const userStore = useUserStore()
+    if (!comandaAtiva.value || !userStore.empresaId) return
 
     loading.value = true
     error.value = null
     try {
-      await updateItemQuantidade(itemId, comandaAtiva.value.id, quantidade, valorUnitario)
+      await updateItemQuantidade(
+        userStore.empresaId,
+        comandaAtiva.value.id,
+        itemId,
+        quantidade,
+        valorUnitario,
+      )
       await fetchComandaById(comandaAtiva.value.id)
     } catch (err: any) {
       error.value = err.message
@@ -141,10 +156,13 @@ export const useComandasStore = defineStore('comandas', () => {
 
   // Fechar comanda
   async function fechar(id: string, desconto = 0) {
+    const userStore = useUserStore()
+    if (!userStore.empresaId) return
+
     loading.value = true
     error.value = null
     try {
-      await fecharComanda(id, desconto)
+      await fecharComanda(userStore.empresaId, id, desconto)
       await fetchComandas()
       comandaAtiva.value = null
     } catch (err: any) {
@@ -157,10 +175,13 @@ export const useComandasStore = defineStore('comandas', () => {
 
   // Cancelar comanda
   async function cancelar(id: string) {
+    const userStore = useUserStore()
+    if (!userStore.empresaId) return
+
     loading.value = true
     error.value = null
     try {
-      await cancelarComanda(id)
+      await cancelarComanda(userStore.empresaId, id)
       await fetchComandas()
       comandaAtiva.value = null
     } catch (err: any) {

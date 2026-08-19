@@ -1,6 +1,14 @@
+import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
-import { supabase } from '@/supabase/client'
+import { createEmpresa } from '@/firebase/collections/empresas'
+import {
+  createUsuario,
+  findUsuarioByAuthUid,
+  getUsuarioById,
+  getUsuarioByEmail,
+  updateUltimoLogin,
+  updateUsuario,
+} from '@/firebase/collections/usuarios'
 import { useAuthStore } from './auth.store'
 import type { CargoUsuario } from '@/types/database.types'
 
@@ -16,18 +24,15 @@ interface UsuarioLogado {
 }
 
 export const useUserStore = defineStore('user', () => {
-  // State
   const usuario = ref<UsuarioLogado | null>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
 
-  // Getters
   const isAdmin = computed(() => usuario.value?.cargo === 'admin')
   const isGarcom = computed(() => usuario.value?.cargo === 'garcom')
   const empresaId = computed(() => usuario.value?.empresa_id ?? null)
   const nomeUsuario = computed(() => usuario.value?.nome ?? '')
 
-  // Busca os dados do usuário logado na tabela usuarios
   async function fetchUsuarioLogado() {
     const authStore = useAuthStore()
     if (!authStore.userId || !authStore.userEmail) return
@@ -35,66 +40,84 @@ export const useUserStore = defineStore('user', () => {
     loading.value = true
     error.value = null
     try {
-      const { data, error: err } = await supabase
-        .from('usuarios')
-        .select('*')
-        .eq('email', authStore.userEmail)
-        .single()
+      const savedCompany = localStorage.getItem('vaultpos:empresaId')
+      let profile = savedCompany
+        ? (await getUsuarioById(savedCompany, authStore.userId)) ??
+          (await getUsuarioByEmail(savedCompany, authStore.userEmail))
+        : null
 
-      if (err) throw err
-      usuario.value = data
-    } catch (err: any) {
-      error.value = err.message
+      profile ??= await findUsuarioByAuthUid(authStore.userId)
+      if (!profile) {
+        const companyId = authStore.userId
+        const emailName = authStore.userEmail.split('@')[0]
+        const name =
+          authStore.user?.displayName?.trim() || emailName || 'Administrador'
+        profile = await createUsuario(companyId, {
+          nome: name,
+          email: authStore.userEmail,
+          cargo: 'admin',
+          foto: authStore.user?.photoURL,
+          authUid: authStore.userId,
+        })
+        await createEmpresa(companyId, {
+          nome: `Empresa de ${name}`,
+          email: authStore.userEmail,
+        })
+      }
+
+      if (!profile) throw new Error('Usuário não vinculado a uma empresa.')
+      if (!profile.ativo) throw new Error('Este usuário está desativado.')
+
+      usuario.value = profile
+      localStorage.setItem('vaultpos:empresaId', profile.empresa_id)
+      await updateUltimoLogin(profile.empresa_id, profile.id)
+    } catch (caught) {
+      error.value =
+        caught instanceof Error ? caught.message : 'Erro ao carregar usuário.'
+      usuario.value = null
+      throw caught
     } finally {
       loading.value = false
     }
   }
 
-  // Atualiza perfil do usuário logado
-  async function updatePerfil(updates: Partial<{
-    nome: string
-    telefone: string
-    foto: string
-  }>) {
+  async function updatePerfil(
+    updates: Partial<{ nome: string; telefone: string; foto: string }>,
+  ) {
     if (!usuario.value) return
 
     loading.value = true
     error.value = null
     try {
-      const { data, error: err } = await supabase
-        .from('usuarios')
-        .update(updates)
-        .eq('id', usuario.value.id)
-        .select()
-        .single()
-
-      if (err) throw err
-      usuario.value = { ...usuario.value, ...data }
-    } catch (err: any) {
-      error.value = err.message
-      throw err
+      const updated = await updateUsuario(
+        usuario.value.empresa_id,
+        usuario.value.id,
+        updates,
+      )
+      if (updated) usuario.value = updated
+    } catch (caught) {
+      error.value =
+        caught instanceof Error ? caught.message : 'Erro ao atualizar perfil.'
+      throw caught
     } finally {
       loading.value = false
     }
   }
 
-  // Limpa ao fazer logout
   function clear() {
     usuario.value = null
     error.value = null
+    localStorage.removeItem('vaultpos:empresaId')
   }
 
   return {
-    // State
     usuario,
     loading,
     error,
-    // Getters
     isAdmin,
     isGarcom,
     empresaId,
     nomeUsuario,
-    // Actions
     fetchUsuarioLogado,
     updatePerfil,
     clear,

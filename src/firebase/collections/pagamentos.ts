@@ -4,6 +4,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  serverTimestamp,
   updateDoc,
 } from 'firebase/firestore'
 import { db } from '@/firebase/config'
@@ -18,7 +19,6 @@ import type {
   Pagamento,
   PagamentoComRelacoes,
 } from '@/types/database.types'
-import { serverTimestamp } from 'firebase/firestore'
 
 function paymentsCollection(empresaId: string) {
   return collection(db, 'empresas', empresaId, 'pagamentos')

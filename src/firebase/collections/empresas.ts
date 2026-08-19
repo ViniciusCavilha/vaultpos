@@ -85,6 +85,7 @@ export async function createEmpresa(
       doc(db, 'empresas', empresaId),
       withoutUndefined({
         ...dados,
+        ownerUid: empresaId,
         plano: dados.plano ?? 'basico',
         ativo: true,
         criadoEm: serverTimestamp(),

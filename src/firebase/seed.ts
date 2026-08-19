@@ -181,5 +181,5 @@ export async function seedDatabase(empresaId: string): Promise<void> {
   )
 
   await batch.commit()
-  localStorage.setItem('vaultpos_empresa_id', empresaId)
+  localStorage.setItem('vaultpos:empresaId', empresaId)
 }
