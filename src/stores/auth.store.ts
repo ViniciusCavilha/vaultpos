@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import type { User } from 'firebase/auth'
+import { GoogleAuthProvider, reauthenticateWithPopup, type User } from 'firebase/auth'
 import type { CargoUsuario } from '@/types/database.types'
 import {
   forgotPassword as firebaseForgotPassword,
@@ -322,13 +322,18 @@ export const useAuthStore = defineStore('auth', () => {
       if (!user.value?.uid) throw new Error('Usuário não autenticado.')
       const userToDelete = user.value
       const companyId = empresaId || (typeof window === 'undefined' ? null : localStorage.getItem('vaultpos_empresa_id'))
+      const usesGoogle = userToDelete.providerData?.some((provider) => provider.providerId === 'google.com') ?? false
 
       if (!hasRecentLogin(userToDelete)) {
-        savePendingAccountDeletion(userToDelete.uid, companyId)
-        deleteRequiresLogin.value = true
-        const recentLoginError = new Error('Entre novamente para confirmar a exclusão da conta.')
-        Object.assign(recentLoginError, { code: 'auth/requires-recent-login' })
-        throw recentLoginError
+        if (usesGoogle) {
+          await reauthenticateWithPopup(userToDelete, new GoogleAuthProvider())
+        } else {
+          savePendingAccountDeletion(userToDelete.uid, companyId)
+          deleteRequiresLogin.value = true
+          const recentLoginError = new Error('Entre novamente para confirmar a exclusão da conta.')
+          Object.assign(recentLoginError, { code: 'auth/requires-recent-login' })
+          throw recentLoginError
+        }
       }
 
       if (companyId) await deleteUsuarioPermanent(companyId, userToDelete.uid)

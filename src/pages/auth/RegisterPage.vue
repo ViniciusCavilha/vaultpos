@@ -75,7 +75,6 @@
           <span v-if="fieldError('role')" class="field-error">{{ fieldError('role') }}</span>
         </fieldset>
         <vault-input
-          v-if="!isGoogleRegistration"
           v-model="form.password"
           label="Senha"
           :type="showPassword ? 'text' : 'password'"
@@ -91,7 +90,6 @@
         />
 
         <vault-input
-          v-if="!isGoogleRegistration"
           v-model="form.confirmPassword"
           label="Confirmar senha"
           :type="showConfirmPassword ? 'text' : 'password'"
@@ -138,6 +136,7 @@ import { useRoute, useRouter } from 'vue-router'
 import VaultButton from '@/components/common/VaultButton.vue'
 import VaultInput from '@/components/common/VaultInput.vue'
 import { useVaultToast } from '@/composables/useVaultToast'
+import { linkPasswordToCurrentUser } from '@/firebase/auth'
 import AuthLayout from '@/layouts/AuthLayout.vue'
 import { useAuthStore } from '@/stores/auth.store'
 
@@ -172,7 +171,6 @@ const googleNamePattern = /^[\p{L} ]+$/u
 const isGoogleRegistration = computed(() => route.query.google === '1' && Boolean(authStore.userEmail))
 
 function validate(field: FieldName) {
-  if (isGoogleRegistration.value && (field === 'password' || field === 'confirmPassword')) return ''
   const value = form[field].trim()
   if (!value) return 'Campo obrigatório'
   if (field === 'email' && !emailPattern.test(value)) return 'E-mail inválido'
@@ -220,6 +218,7 @@ async function handleRegister() {
 
   try {
     if (isGoogleRegistration.value) {
+      await linkPasswordToCurrentUser(form.password)
       await authStore.completeGoogleRegistration({
         full_name: form.name.trim(),
         phone: form.phone.trim(),
@@ -232,8 +231,9 @@ async function handleRegister() {
         role: form.role,
       })
     }
+    const dashboard = form.role === 'admin' ? '/admin/dashboard' : '/garcom/dashboard'
     await showToast(isGoogleRegistration.value ? 'Cadastro concluído com sucesso!' : 'Conta criada com sucesso!', 'success')
-    await router.replace(form.role === 'admin' ? '/admin/dashboard' : '/garcom/dashboard')
+    window.location.replace(dashboard)
   } catch (error) {
     await showToast(authStore.error || (error instanceof Error ? error.message : 'Não foi possível criar a conta.'), 'error')
   }

@@ -5,6 +5,7 @@ import {
   createUserWithEmailAndPassword,
   deleteUser,
   getAuth,
+  linkWithCredential,
   onAuthStateChanged,
   reauthenticateWithCredential,
   sendPasswordResetEmail,
@@ -49,6 +50,16 @@ export async function register(
   const { user } = await createUserWithEmailAndPassword(auth, email, password)
   const displayName = typeof metadata.full_name === 'string' ? metadata.full_name : null
   if (displayName) await updateProfile(user, { displayName })
+  return user
+}
+
+export async function linkPasswordToCurrentUser(password: string) {
+  const currentUser = auth.currentUser
+  if (!currentUser?.email) throw new Error('Sua conta Google não retornou um e-mail válido.')
+  if (currentUser.providerData.some((provider) => provider.providerId === 'password')) return currentUser
+
+  const credential = EmailAuthProvider.credential(currentUser.email, password)
+  const { user } = await linkWithCredential(currentUser, credential)
   return user
 }
 

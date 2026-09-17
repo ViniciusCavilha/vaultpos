@@ -48,20 +48,7 @@
           @click="handleLogin"
         />
 
-        <div class="demo-actions">
-          <vault-button
-            variant="secondary"
-            label="Demo Admin"
-            :disabled="authStore.loading"
-            @click="loginDemo('admin')"
-          />
-          <vault-button
-            variant="secondary"
-            label="Demo Garçom"
-            :disabled="authStore.loading"
-            @click="loginDemo('garcom')"
-          />
-        </div>
+
         <div class='separador'>
           <div class='linha' />
           <span>ou</span>
@@ -136,17 +123,6 @@ async function handleLogin() {
   }
 }
 
-async function loginDemo(type: 'admin' | 'garcom') {
-  if (type === 'admin') {
-    email.value = 'admin@vaultpos.com'
-    password.value = 'admin123'
-  } else {
-    email.value = 'usuario@vaultpos.com'
-    password.value = 'user123'
-  }
-
-  await handleLogin()
-}
 
 async function handleGoogleLogin() {
   if (authStore.loading) return
@@ -210,14 +186,6 @@ async function handleGoogleLogin() {
 
 .login-button { margin-top: 24px; }
 
-.demo-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.demo-actions :deep(.vault-button) { height: 44px; font-size: 13px; color: #6B7280; }
 
 .separador {
   display: flex;
