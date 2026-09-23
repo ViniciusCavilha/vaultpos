@@ -1,6 +1,7 @@
 <template>
   <span class="vault-avatar" :class="`vault-avatar--${size}`" :aria-label="name">
-    {{ initial }}
+    <img v-if="photo" :src="photo" alt="" />
+    <template v-else>{{ initial }}</template>
   </span>
 </template>
 
@@ -9,8 +10,10 @@ import { computed } from 'vue'
 
 const props = withDefaults(defineProps<{
   name: string
+  photo?: string | null
   size?: 'sm' | 'md' | 'lg'
 }>(), {
+  photo: null,
   size: 'md',
 })
 
@@ -27,7 +30,10 @@ const initial = computed(() => props.name.trim().charAt(0).toUpperCase() || 'V')
   background: #FEF2F2;
   color: #991B1B;
   font-family: var(--vault-font-family);
+  overflow: hidden;
 }
+
+.vault-avatar img { width: 100%; height: 100%; object-fit: cover; }
 
 .vault-avatar--sm { width: 32px; height: 32px; font-size: 13px; font-weight: 600; }
 .vault-avatar--md { width: 44px; height: 44px; font-size: 16px; font-weight: 700; }
