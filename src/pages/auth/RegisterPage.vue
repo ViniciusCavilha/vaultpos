@@ -260,21 +260,21 @@ watch(() => form.phone, (value) => {
 .auth-screen {
   min-height: 100%;
   padding: 48px 24px 96px;
-  background: #FFFFFF;
+  background: var(--vault-color-surface);
 }
 
 .vault-logo { text-align: center; font-size: 22px; letter-spacing: 2px; }
 .vault-logo-vault { color: #991B1B; font-weight: 800; }
-.vault-logo-pos { color: #111827; font-weight: 800; }
+.vault-logo-pos { color: var(--vault-color-text-1); font-weight: 800; }
 .auth-copy { margin-top: 32px; }
-.auth-copy h1 { margin: 0; color: #111827; font-size: 28px; font-weight: 700; line-height: 1.2; }
-.auth-copy p { margin: 6px 0 0; color: #6B7280; font-size: 14px; }
+.auth-copy h1 { margin: 0; color: var(--vault-color-text-1); font-size: 28px; font-weight: 700; line-height: 1.2; }
+.auth-copy p { margin: 6px 0 0; color: var(--vault-color-text-2); font-size: 14px; }
 .auth-form { display: grid; gap: 16px; margin-top: 24px; }
 .role-field { margin: 0; border: 0; padding: 0; }
-.role-field legend { margin-bottom: 6px; color: #6B7280; font-size: 13px; }
+.role-field legend { margin-bottom: 6px; color: var(--vault-color-text-2); font-size: 13px; }
 .role-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.role-options button { height: 48px; border: 1px solid #E5E7EB; border-radius: 10px; background: #F8FAFC; color: #6B7280; font-family: Inter, sans-serif; font-size: 14px; font-weight: 600; }
-.role-options button.active { border-color: #991B1B; background: #FEF2F2; color: #991B1B; }
+.role-options button { height: 48px; border: 1px solid var(--vault-color-border); border-radius: 10px; background: var(--vault-color-bg); color: var(--vault-color-text-2); font-family: Inter, sans-serif; font-size: 14px; font-weight: 600; }
+.role-options button.active { border-color: #991B1B; background: var(--vault-color-primary-soft); color: #991B1B; }
 .role-options button:disabled { cursor: not-allowed; opacity: .8; }
 .field-error { display: block; margin-top: 4px; color: #EF4444; font-size: 12px; }
 .register-button { margin-top: 8px; }
@@ -284,7 +284,7 @@ watch(() => form.phone, (value) => {
   right: 24px;
   bottom: 32px;
   left: 24px;
-  color: #6B7280;
+  color: var(--vault-color-text-2);
   font-size: 14px;
   text-align: center;
 }

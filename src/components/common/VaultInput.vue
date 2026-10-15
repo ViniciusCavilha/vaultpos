@@ -108,7 +108,7 @@ function handleBlur(event: FocusEvent) {
 .vault-field__label {
   display: block;
   margin-bottom: 6px;
-  color: #6B7280;
+  color: var(--vault-color-text-2);
   font-size: 13px;
   font-weight: 400;
 }
@@ -120,15 +120,15 @@ function handleBlur(event: FocusEvent) {
   height: 52px;
   overflow: hidden;
   align-items: center;
-  border: 1px solid #E5E7EB;
+  border: 1px solid var(--vault-color-border);
   border-radius: 10px;
-  background: #F8FAFC;
+  background: var(--vault-color-bg);
   transition: border-color 150ms ease, background-color 150ms ease;
 }
 
 .vault-field__control.is-focused {
   border: 1.5px solid #991B1B;
-  background: #FFFFFF;
+  background: var(--vault-color-surface);
 }
 
 .vault-field__control.has-error {
@@ -152,7 +152,7 @@ input {
   outline: none;
   background: transparent;
   padding: 0 16px;
-  color: #111827;
+  color: var(--vault-color-text-1);
   font-family: var(--vault-font-family);
   font-size: 14px;
   font-weight: 400;
@@ -167,21 +167,21 @@ input.has-right-icon {
 }
 
 input::placeholder {
-  color: #6B7280;
+  color: var(--vault-color-text-2);
   opacity: 1;
 }
 
 input:disabled {
   cursor: not-allowed;
-  color: #111827;
+  color: var(--vault-color-text-1);
 }
 
-input:disabled::placeholder { color: #6B7280; }
+input:disabled::placeholder { color: var(--vault-color-text-2); }
 
 .vault-field__icon {
   position: absolute;
   z-index: 1;
-  color: #9CA3AF;
+  color: var(--vault-color-text-3);
   font-size: 18px;
   pointer-events: none;
 }
@@ -208,7 +208,7 @@ input:disabled::placeholder { color: #6B7280; }
 }
 
 .is-disabled .vault-field__icon {
-  color: #6B7280;
+  color: var(--vault-color-text-2);
 }
 
 .vault-field__right-button {
@@ -221,7 +221,7 @@ input:disabled::placeholder { color: #6B7280; }
   place-items: center;
   border: 0;
   background: transparent;
-  color: #9CA3AF;
+  color: var(--vault-color-text-3);
   cursor: pointer;
 }
 

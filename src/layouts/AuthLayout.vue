@@ -14,14 +14,14 @@ import { IonContent, IonPage } from '@ionic/vue'
 
 <style scoped>
 .auth-layout {
-  --background: #FFFFFF;
-  --color: #111827;
+  --background: var(--vault-color-surface);
+  --color: var(--vault-color-text-1);
 }
 
 .auth-layout__content {
   position: relative;
   width: 100%;
   min-height: 100%;
-  background: #FFFFFF;
+  background: var(--vault-color-surface);
 }
 </style>

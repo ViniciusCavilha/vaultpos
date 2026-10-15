@@ -41,11 +41,11 @@
 
         <vault-button
           class="login-button"
+          type="submit"
           label="Entrar"
           loading-label="Entrando..."
           :loading="authStore.loading"
           :disabled="!canSubmit"
-          @click="handleLogin"
         />
 
 
@@ -108,6 +108,7 @@ const canSubmit = computed(() => email.value.trim().length > 0 && password.value
 async function handleLogin() {
   if (!canSubmit.value || authStore.loading) return
 
+  userStore.clear()
   try {
     await authStore.login(email.value.trim(), password.value)
     if (await authStore.finishPendingAccountDeletion()) {
@@ -116,7 +117,9 @@ async function handleLogin() {
       showError.value = true
       return
     }
-    await router.replace(authStore.isAdmin ? '/admin/dashboard' : '/garcom/dashboard')
+    await userStore.fetchUsuarioLogado()
+    const dashboard = userStore.isAdmin || authStore.isAdmin ? '/admin/dashboard' : '/garcom/dashboard'
+    window.location.replace(dashboard)
   } catch (error) {
     errorMessage.value = authStore.error || (error instanceof Error ? error.message : 'Não foi possível entrar.')
     showError.value = true
@@ -139,9 +142,11 @@ async function handleGoogleLogin() {
       return
     }
 
-    void userStore.fetchUsuarioLogado()
-    await router.replace(authStore.isAdmin ? '/admin/dashboard' : '/garcom/dashboard')
+    await userStore.fetchUsuarioLogado()
+    const dashboard = userStore.isAdmin || authStore.isAdmin ? '/admin/dashboard' : '/garcom/dashboard'
+    window.location.replace(dashboard)
   } catch (error) {
+    userStore.clear()
     errorMessage.value = authStore.error || (error instanceof Error ? error.message : 'Não foi possível entrar com Google.')
     showError.value = true
   }
@@ -152,7 +157,7 @@ async function handleGoogleLogin() {
 .auth-screen {
   min-height: 100%;
   padding: 48px 24px 96px;
-  background: #FFFFFF;
+  background: var(--vault-color-surface);
 }
 
 .vault-logo {
@@ -163,11 +168,11 @@ async function handleGoogleLogin() {
 }
 
 .vault-logo-vault { color: #991B1B; font-weight: 800; }
-.vault-logo-pos { color: #111827; font-weight: 800; }
+.vault-logo-pos { color: var(--vault-color-text-1); font-weight: 800; }
 
 .auth-copy { margin-top: 40px; }
-.auth-copy h1 { margin: 0; color: #111827; font-size: 28px; font-weight: 700; line-height: 1.2; }
-.auth-copy p { margin: 6px 0 0; color: #6B7280; font-size: 14px; }
+.auth-copy h1 { margin: 0; color: var(--vault-color-text-1); font-size: 28px; font-weight: 700; line-height: 1.2; }
+.auth-copy p { margin: 6px 0 0; color: var(--vault-color-text-2); font-size: 14px; }
 .auth-form { margin-top: 24px; }
 .password-field { margin-top: 16px; }
 
@@ -192,11 +197,11 @@ async function handleGoogleLogin() {
   align-items: center;
   gap: 12px;
   margin-top: 20px;
-  color: #9CA3AF;
+  color: var(--vault-color-text-3);
   font-size: 13px;
 }
 
-.linha { height: 1px; flex: 1; background: #E5E7EB; }
+.linha { height: 1px; flex: 1; background: var(--vault-color-border); }
 
 .btn-google {
   display: flex;
@@ -206,17 +211,17 @@ async function handleGoogleLogin() {
   justify-content: center;
   gap: 10px;
   margin-top: 12px;
-  border: 1px solid #E5E7EB;
+  border: 1px solid var(--vault-color-border);
   border-radius: 12px;
-  background: #FFFFFF;
-  color: #111827;
+  background: var(--vault-color-surface);
+  color: var(--vault-color-text-1);
   font-family: 'Inter', sans-serif;
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
 }
 
-.btn-google:active { background: #F9FAFB; }
+.btn-google:active { background: var(--vault-color-surface-subtle); }
 .btn-google:disabled { opacity: .6; cursor: not-allowed; }
 
 .auth-footer {
@@ -224,7 +229,7 @@ async function handleGoogleLogin() {
   right: 24px;
   bottom: 32px;
   left: 24px;
-  color: #6B7280;
+  color: var(--vault-color-text-2);
   font-size: 14px;
   text-align: center;
 }

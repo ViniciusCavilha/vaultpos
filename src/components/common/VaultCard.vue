@@ -23,7 +23,7 @@ withDefaults(defineProps<{
   width: 100%;
   border-radius: 12px;
   padding: 16px;
-  background: #FFFFFF;
+  background: var(--vault-color-surface);
 }
 
 .vault-card--sombra {

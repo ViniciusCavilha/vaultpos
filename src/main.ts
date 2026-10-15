@@ -23,6 +23,11 @@ import '@ionic/vue/css/display.css';
 /* Theme variables */
 import './theme/variables.css';
 
+const savedTheme = localStorage.getItem('vaultpos_theme')
+const isDarkTheme = savedTheme === 'dark'
+document.documentElement.classList.toggle('vault-dark', isDarkTheme)
+document.documentElement.style.colorScheme = isDarkTheme ? 'dark' : 'light'
+
 const app = createApp(App)
   .use(IonicVue)
   .use(createPinia()) // ← adiciona

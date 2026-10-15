@@ -57,7 +57,7 @@ function retry() {
   height: 72px;
   place-items: center;
   border-radius: 50%;
-  background: #FEF2F2;
+  background: var(--vault-color-primary-soft);
 }
 
 .vault-error-state__icon span {
@@ -74,7 +74,7 @@ function retry() {
 
 h2 {
   margin: 20px 0 0;
-  color: #111827;
+  color: var(--vault-color-text-1);
   font-size: 18px;
   font-weight: 600;
 }
@@ -82,7 +82,7 @@ h2 {
 p {
   max-width: 280px;
   margin: 8px auto 0;
-  color: #6B7280;
+  color: var(--vault-color-text-2);
   font-size: 14px;
   font-weight: 400;
   line-height: 1.5;

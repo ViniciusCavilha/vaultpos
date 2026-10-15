@@ -1,12 +1,12 @@
 <template>
   <span class="vault-avatar" :class="`vault-avatar--${size}`" :aria-label="name">
-    <img v-if="photo" :src="photo" alt="" />
-    <template v-else>{{ initial }}</template>
+    <img v-if="hasValidPhoto" :src="photo || undefined" :alt="`Foto de ${name}`" @error="handleImageError" />
+    <template v-else>{{ initials }}</template>
   </span>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 const props = withDefaults(defineProps<{
   name: string
@@ -17,7 +17,23 @@ const props = withDefaults(defineProps<{
   size: 'md',
 })
 
-const initial = computed(() => props.name.trim().charAt(0).toUpperCase() || 'V')
+const imageFailed = ref(false)
+const hasValidPhoto = computed(() => Boolean(props.photo?.trim()) && !imageFailed.value)
+const initials = computed(() => {
+  const nameParts = props.name.trim().split(/\s+/).filter(Boolean)
+  if (!nameParts.length) return 'V'
+  const firstInitial = nameParts[0].charAt(0)
+  const lastInitial = nameParts.length > 1 ? nameParts[nameParts.length - 1].charAt(0) : ''
+  return (firstInitial + lastInitial).toUpperCase()
+})
+
+function handleImageError() {
+  imageFailed.value = true
+}
+
+watch(() => props.photo, () => {
+  imageFailed.value = false
+})
 </script>
 
 <style scoped>
@@ -27,9 +43,11 @@ const initial = computed(() => props.name.trim().charAt(0).toUpperCase() || 'V')
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: #FEF2F2;
+  background: var(--vault-color-primary-soft);
   color: #991B1B;
   font-family: var(--vault-font-family);
+  line-height: 1;
+  text-align: center;
   overflow: hidden;
 }
 

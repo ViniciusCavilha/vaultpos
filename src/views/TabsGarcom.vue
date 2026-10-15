@@ -2,6 +2,10 @@
   <ion-tabs>
     <ion-router-outlet />
 
+    <button class="center-new-order-button" type="button" aria-label="Abrir nova comanda" @click="openNewOrder">
+      <ion-icon :icon="add" />
+    </button>
+
     <ion-tab-bar slot="bottom" class="vault-tab-bar">
       <ion-tab-button tab="garcom-dashboard" href="/garcom/dashboard">
         <ion-icon :icon="isActive('/garcom/dashboard') ? home : homeOutline" />
@@ -18,11 +22,7 @@
         <ion-label>Comandas</ion-label>
       </ion-tab-button>
 
-      <ion-tab-button class="new-order-slot" tab="garcom-nova" @click.prevent="openNewOrder">
-        <ion-fab-button aria-label="Abrir nova comanda">
-          <ion-icon :icon="add" />
-        </ion-fab-button>
-      </ion-tab-button>
+      <ion-tab-button class="new-order-slot" tab="garcom-nova" aria-label="Abrir nova comanda" @click.prevent="openNewOrder" />
 
       <ion-tab-button tab="garcom-estoque" href="/garcom/estoque">
         <ion-icon :icon="isActive('/garcom/estoque') ? cube : cubeOutline" />
@@ -40,7 +40,6 @@
 <script setup lang="ts">
 import {
   IonBadge,
-  IonFabButton,
   IonIcon,
   IonLabel,
   IonRouterOutlet,
@@ -88,16 +87,16 @@ onMounted(() => {
   height: calc(76px + env(safe-area-inset-bottom));
   contain: none;
   overflow: visible;
-  border-top: 1px solid #F3F4F6;
-  background: #FFFFFF;
+  border-top: 1px solid var(--vault-color-surface-muted);
+  background: var(--vault-color-surface);
   box-shadow: none;
-  --background: #FFFFFF;
+  --background: var(--vault-color-surface);
 }
 
 ion-tab-button {
   overflow: visible;
-  --background: #FFFFFF;
-  --color: #9CA3AF;
+  --background: var(--vault-color-surface);
+  --color: var(--vault-color-text-3);
   --color-selected: #991B1B;
   font-family: var(--vault-font-family);
 }
@@ -122,25 +121,30 @@ ion-tab-button.tab-selected ion-label { font-weight: 600; }
 }
 
 .new-order-slot {
-  position: relative;
-  overflow: visible;
   --padding-start: 0;
   --padding-end: 0;
   --color: #FFFFFF;
 }
 
-.new-order-slot ion-fab-button {
-  position: absolute;
-  top: -24px;
+.center-new-order-button {
+  position: fixed !important;
+  z-index: 20;
+  bottom: calc(10px + env(safe-area-inset-bottom));
   left: 50%;
+  display: grid;
   width: 56px;
   height: 56px;
   margin: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  padding: 0;
   transform: translateX(-50%);
-  --background: #991B1B;
-  --background-activated: #7F1D1D;
-  --box-shadow: 0 8px 18px rgba(153, 27, 27, 0.32);
+  background: #991B1B;
+  box-shadow: 0 8px 18px rgba(153, 27, 27, 0.32);
 }
 
-.new-order-slot ion-icon { color: #FFFFFF; font-size: 28px; }
+.center-new-order-button:active { background: #7F1D1D; }
+
+.center-new-order-button ion-icon { color: #FFFFFF; font-size: 28px; }
 </style>

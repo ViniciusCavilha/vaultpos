@@ -24,14 +24,14 @@ withDefaults(defineProps<{
 .vault-kpi {
   border-radius: 12px;
   padding: 16px;
-  background: #FFFFFF;
+  background: var(--vault-color-surface);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
   font-family: var(--vault-font-family);
 }
 
 .vault-kpi__label {
   display: block;
-  color: #9CA3AF;
+  color: var(--vault-color-text-3);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.5px;
@@ -41,7 +41,7 @@ withDefaults(defineProps<{
 .vault-kpi__value {
   display: block;
   margin-top: 4px;
-  color: #111827;
+  color: var(--vault-color-text-1);
   font-size: 28px;
   font-weight: 700;
 }

@@ -46,14 +46,14 @@ withDefaults(defineProps<{
   width: 100%;
   border-radius: 12px;
   padding: 16px;
-  background: #FFFFFF;
+  background: var(--vault-color-surface);
 }
 
 .skeleton-block {
   display: block;
   flex: 0 0 auto;
   border-radius: 4px;
-  background: #E5E7EB;
+  background: var(--vault-color-border);
   animation: vault-pulse 1.5s ease-in-out infinite;
 }
 

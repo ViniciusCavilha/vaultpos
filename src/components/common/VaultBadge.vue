@@ -15,11 +15,11 @@ withDefaults(defineProps<{
 .vault-badge {
   display: inline-flex;
   align-items: center;
-  border: 1px solid #E5E7EB;
+  border: 1px solid var(--vault-color-border);
   border-radius: 6px;
   padding: 3px 8px;
-  background: #F3F4F6;
-  color: #6B7280;
+  background: var(--vault-color-surface-muted);
+  color: var(--vault-color-text-2);
   font-family: var(--vault-font-family);
   font-size: 11px;
   font-weight: 600;
@@ -29,7 +29,7 @@ withDefaults(defineProps<{
 }
 
 .vault-badge--sucesso { border-color: #86EFAC; background: #DCFCE7; color: #16A34A; }
-.vault-badge--atencao { border-color: #FCD34D; background: #FEF3C7; color: #D97706; }
-.vault-badge--erro { border-color: #FCA5A5; background: #FEE2E2; color: #DC2626; }
-.vault-badge--info { border-color: #7DD3FC; background: #E0F2FE; color: #0284C7; }
+.vault-badge--atencao { border-color: #FCD34D; background: var(--vault-color-warning-soft); color: #D97706; }
+.vault-badge--erro { border-color: #FCA5A5; background: var(--vault-color-error-soft); color: #DC2626; }
+.vault-badge--info { border-color: #7DD3FC; background: var(--vault-color-info-soft); color: #0284C7; }
 </style>

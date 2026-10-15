@@ -98,10 +98,10 @@ async function handleReset() {
 </script>
 
 <style scoped>
-.auth-screen { min-height: 100%; padding: 48px 24px; background: #FFFFFF; }
+.auth-screen { min-height: 100%; padding: 48px 24px; background: var(--vault-color-surface); }
 .vault-logo { text-align: center; font-size: 22px; letter-spacing: 2px; }
 .vault-logo-vault { color: #991B1B; font-weight: 800; }
-.vault-logo-pos { color: #111827; font-weight: 800; }
+.vault-logo-pos { color: var(--vault-color-text-1); font-weight: 800; }
 .recovery-content, .success-content { margin-top: 48px; text-align: center; }
 .recovery-icon, .success-icon {
   display: grid;
@@ -110,15 +110,15 @@ async function handleReset() {
   margin: 0 auto;
   place-items: center;
   border-radius: 50%;
-  background: #FEF2F2;
+  background: var(--vault-color-primary-soft);
   color: #991B1B;
 }
 .recovery-icon ion-icon, .success-icon ion-icon { font-size: 36px; }
-.recovery-content h1 { margin: 24px 0 0; color: #111827; font-size: 26px; font-weight: 700; }
+.recovery-content h1 { margin: 24px 0 0; color: var(--vault-color-text-1); font-size: 26px; font-weight: 700; }
 .recovery-content > p, .success-content > p {
   max-width: 280px;
   margin: 10px auto 0;
-  color: #6B7280;
+  color: var(--vault-color-text-2);
   font-size: 14px;
   line-height: 1.5;
 }
@@ -134,8 +134,8 @@ async function handleReset() {
   font-size: 14px;
 }
 .success-content { padding-top: 28px; }
-.success-icon { background: #F0FDF4; color: #22C55E; }
-.success-content h1 { margin: 24px 0 0; color: #111827; font-size: 24px; font-weight: 700; }
+.success-icon { background: var(--vault-color-success-soft); color: #22C55E; }
+.success-content h1 { margin: 24px 0 0; color: var(--vault-color-text-1); font-size: 24px; font-weight: 700; }
 .success-button { margin-top: 24px; }
 
 @media (min-width: 640px) {

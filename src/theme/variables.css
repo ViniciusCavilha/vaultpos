@@ -20,12 +20,18 @@
   --vault-color-info: #0EA5E9;
   --vault-color-bg: #F8FAFC;
   --vault-color-surface: #FFFFFF;
+  --vault-color-surface-muted: #F3F4F6;
+  --vault-color-surface-subtle: #F9FAFB;
   --vault-color-border: #E5E7EB;
   --vault-color-text-1: #111827;
   --vault-color-text-2: #6B7280;
   --vault-color-text-3: #9CA3AF;
   --vault-color-placeholder: #D1D5DB;
   --vault-color-white: #FFFFFF;
+  --vault-color-success-soft: #F0FDF4;
+  --vault-color-warning-soft: #FEF3C7;
+  --vault-color-info-soft: #E0F2FE;
+  --vault-color-error-soft: #FEE2E2;
 
   /* Gradientes */
   --vault-gradient-primary: linear-gradient(135deg, #991B1B, #EF4444);
@@ -94,6 +100,39 @@
   --ion-card-background: #FFFFFF;
 }
 
+
+html.vault-dark {
+  --vault-color-primary-soft: #3F1D24;
+  --vault-color-bg: #0F172A;
+  --vault-color-surface: #1E293B;
+  --vault-color-surface-muted: #273449;
+  --vault-color-surface-subtle: #172033;
+  --vault-color-border: #334155;
+  --vault-color-text-1: #F8FAFC;
+  --vault-color-text-2: #CBD5E1;
+  --vault-color-text-3: #94A3B8;
+  --vault-color-placeholder: #64748B;
+  --vault-color-success-soft: #123524;
+  --vault-color-warning-soft: #422F12;
+  --vault-color-info-soft: #102F49;
+  --vault-color-error-soft: #451A1A;
+  --vault-input-bg: #172033;
+  --ion-background-color: #0F172A;
+  --ion-background-color-rgb: 15, 23, 42;
+  --ion-text-color: #F8FAFC;
+  --ion-text-color-rgb: 248, 250, 252;
+  --ion-border-color: #334155;
+  --ion-item-background: #1E293B;
+  --ion-toolbar-background: #1E293B;
+  --ion-tab-bar-background: #1E293B;
+  --ion-tab-bar-border-color: #334155;
+  --ion-card-background: #1E293B;
+}
+
+html.vault-dark body {
+  background-color: var(--vault-color-bg);
+  color: var(--vault-color-text-1);
+}
 *,
 *::before,
 *::after {
@@ -103,7 +142,26 @@
 html,
 body,
 #app {
+  width: 100%;
+  height: 100%;
   min-height: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+ion-app,
+ion-tabs,
+ion-router-outlet,
+.ion-page {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+ion-app,
+ion-tabs {
+  height: 100%;
+  overflow: hidden;
 }
 
 body {
@@ -138,7 +196,90 @@ body {
   --border-radius: 12px;
 }
 
+ion-alert.vault-logout-alert {
+  --width: min(360px, calc(100vw - 40px));
+  --max-width: 360px;
+  --background: var(--vault-color-surface);
+  --backdrop-opacity: .58;
+}
+
+.vault-logout-alert .alert-wrapper {
+  overflow: hidden;
+  border: 1px solid var(--vault-color-border);
+  border-radius: 20px;
+  background: var(--vault-color-surface);
+  box-shadow: 0 24px 60px rgba(15, 23, 42, .28);
+}
+
+.vault-logout-alert .alert-head {
+  padding: 26px 24px 8px;
+}
+
+.vault-logout-alert .alert-title {
+  color: var(--vault-color-text-1);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -.2px;
+}
+
+.vault-logout-alert .alert-message {
+  padding: 0 24px 22px;
+  color: var(--vault-color-text-2);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.vault-logout-alert .alert-button-group {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, .72fr);
+  gap: 10px;
+  padding: 0 20px 20px;
+}
+
+.vault-logout-alert .alert-button {
+  width: 100%;
+  min-width: 0;
+  height: 46px;
+  margin: 0;
+  border-radius: 11px;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: none;
+}
+
+.vault-logout-alert .alert-button-inner {
+  justify-content: center;
+}
+
+.vault-logout-alert .vault-alert-cancel {
+  background: var(--vault-color-surface-muted);
+  color: var(--vault-color-text-1);
+}
+
+.vault-logout-alert .vault-alert-confirm {
+  background: var(--vault-color-primary);
+  color: #FFFFFF;
+}
+
+ion-action-sheet.vault-profile-actions {
+  --background: var(--vault-color-surface);
+  --button-background: var(--vault-color-surface);
+  --button-background-selected: var(--vault-color-surface-muted);
+  --color: var(--vault-color-text-1);
+}
+
+.vault-profile-actions .action-sheet-title,
+.vault-profile-actions .action-sheet-button,
+.vault-profile-actions .action-sheet-button-inner {
+  color: var(--vault-color-text-1);
+}
+
 ion-content::part(scroll) {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
   overscroll-behavior-y: contain;
 }
 

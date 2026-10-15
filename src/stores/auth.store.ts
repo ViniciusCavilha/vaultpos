@@ -55,7 +55,7 @@ export const useAuthStore = defineStore('auth', () => {
   const deleteRequiresLogin = ref(false)
   const role = ref(storedRole())
   let initPromise: Promise<void> | null = null
-  const contextTimeoutMs = 5000
+  const contextTimeoutMs = 20000
   const initTimeoutMs = 8000
 
   const session = computed(() => user.value ? { user: user.value } : null)
@@ -110,9 +110,9 @@ export const useAuthStore = defineStore('auth', () => {
       setRole(profile.cargo)
       if (typeof window !== 'undefined') localStorage.setItem('vaultpos_empresa_id', profile.empresa_id)
       return true
-    } catch {
+    } catch (caught) {
       setRole(storedRole())
-      return false
+      throw caught
     }
   }
 
@@ -241,12 +241,18 @@ export const useAuthStore = defineStore('auth', () => {
   async function loginGoogle() {
     loading.value = true
     error.value = null
+    let authenticatedUser: User | null = null
     try {
-      const firebaseUser = await loginWithGoogle()
-      user.value = compatibleUser(firebaseUser, role.value)
-      const hasProfile = await userHasVaultProfile(firebaseUser)
-      return { user: firebaseUser, needsRegistration: !hasProfile }
+      authenticatedUser = await loginWithGoogle()
+      user.value = compatibleUser(authenticatedUser, role.value)
+      const hasProfile = await userHasVaultProfile(authenticatedUser)
+      return { user: authenticatedUser, needsRegistration: !hasProfile }
     } catch (caught) {
+      if (authenticatedUser) {
+        await firebaseLogout().catch(() => undefined)
+        user.value = null
+        setRole('user')
+      }
       error.value = caught instanceof Error && !errorCode(caught)
         ? caught.message
         : traduzirErroFirebase(errorCode(caught))

@@ -47,7 +47,7 @@ function action() {
   margin: 12px 0;
   border-radius: 16px;
   padding: 32px 24px;
-  background: #FFFFFF;
+  background: var(--vault-color-surface);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
   text-align: center;
 }
@@ -58,15 +58,15 @@ function action() {
   height: 72px;
   place-items: center;
   border-radius: 50%;
-  background: #F3F4F6;
-  color: #9CA3AF;
+  background: var(--vault-color-surface-muted);
+  color: var(--vault-color-text-3);
 }
 
 .vault-empty-state__icon ion-icon { font-size: 32px; }
 
 h2 {
   margin: 16px 0 0;
-  color: #111827;
+  color: var(--vault-color-text-1);
   font-size: 18px;
   font-weight: 600;
 }
@@ -74,7 +74,7 @@ h2 {
 p {
   max-width: 260px;
   margin: 6px auto 0;
-  color: #6B7280;
+  color: var(--vault-color-text-2);
   font-size: 14px;
   line-height: 1.5;
 }

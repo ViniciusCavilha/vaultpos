@@ -34,7 +34,7 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
-  function withTimeout<T>(promise: Promise<T>, timeoutMs = 5000): Promise<T> {
+  function withTimeout<T>(promise: Promise<T>, timeoutMs = 20000): Promise<T> {
     return new Promise((resolve, reject) => {
       const timer = window.setTimeout(() => reject(new Error('Tempo limite ao carregar o perfil.')), timeoutMs)
       promise.then(resolve, reject).finally(() => window.clearTimeout(timer))

@@ -47,6 +47,7 @@
         </section>
       </ion-content>
     </ion-modal>
+    <vault-photo-cropper :file="selectedPhotoFile" @cancel="selectedPhotoFile = null" @confirm="saveCroppedPhoto" />
   </ion-page>
 </template>
 
@@ -54,19 +55,17 @@
 import { IonContent, IonIcon, IonModal, IonPage, IonToggle, actionSheetController, alertController } from '@ionic/vue'
 import { callOutline, cashOutline, chevronForwardOutline, mailOutline, peopleOutline, pulseOutline, trashOutline } from 'ionicons/icons'
 import { computed, defineComponent, h, onMounted, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
 import VaultAvatar from '@/components/common/VaultAvatar.vue'
 import VaultBadge from '@/components/common/VaultBadge.vue'
 import VaultErrorState from '@/components/common/VaultErrorState.vue'
+import VaultPhotoCropper from '@/components/common/VaultPhotoCropper.vue'
 import VaultSkeleton from '@/components/common/VaultSkeleton.vue'
 import { useVaultToast } from '@/composables/useVaultToast'
-import { uploadFotoUsuario } from '@/firebase/storage'
 import { useAuthStore } from '@/stores/auth.store'
 import { useComandasStore } from '@/stores/comandas.store'
 import { useUserStore } from '@/stores/user.store'
 
 const ProfileSection = defineComponent({ props: { title: { type: String, required: true } }, setup(props, { slots }) { return () => h('section', { class: 'profile-section' }, [h('h3', props.title), h('div', { class: 'section-card' }, slots.default?.())]) } })
-const router = useRouter()
 const authStore = useAuthStore()
 const userStore = useUserStore()
 const comandasStore = useComandasStore()
@@ -74,6 +73,7 @@ const { showToast } = useVaultToast()
 const deleteConfirmOpen = ref(false)
 const photoInput = ref<HTMLInputElement | null>(null)
 const uploadingPhoto = ref(false)
+const selectedPhotoFile = ref<File | null>(null)
 const displayName = computed(() => userStore.nomeUsuario || String(authStore.user?.user_metadata?.full_name || 'Garçom'))
 const profilePhoto = computed(() => userStore.usuario?.foto || authStore.user?.photoURL || null)
 const email = computed(() => userStore.usuario?.email || authStore.userEmail || '—')
@@ -114,7 +114,7 @@ async function editProfileDetails() {
 }
 function choosePhoto() { photoInput.value?.click() }
 async function openEditOptions() {
-  const sheet = await actionSheetController.create({ header: 'Editar perfil', buttons: [{ text: 'Alterar foto', handler: choosePhoto }, { text: 'Editar dados', handler: () => { void editProfileDetails() } }, { text: 'Cancelar', role: 'cancel' }] })
+  const sheet = await actionSheetController.create({ cssClass: 'vault-profile-actions', header: 'Editar perfil', buttons: [{ text: 'Alterar foto', handler: choosePhoto }, { text: 'Editar dados', handler: () => { void editProfileDetails() } }, { text: 'Cancelar', role: 'cancel' }] })
   await sheet.present()
 }
 async function handlePhotoSelected(event: Event) {
@@ -125,9 +125,12 @@ async function handlePhotoSelected(event: Event) {
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) { await showToast('Escolha uma imagem JPG, PNG ou WebP.', 'warning'); return }
   if (file.size > 5 * 1024 * 1024) { await showToast('A imagem deve ter no máximo 5 MB.', 'warning'); return }
   if (!userStore.usuario) { await showToast('Não foi possível identificar o perfil.', 'error'); return }
+  selectedPhotoFile.value = file
+}
+async function saveCroppedPhoto(photo: string) {
+  selectedPhotoFile.value = null
   uploadingPhoto.value = true
   try {
-    const photo = await uploadFotoUsuario(userStore.usuario.id, file)
     await userStore.updatePerfil({ foto: photo })
     await showToast('Foto atualizada com sucesso!', 'success')
   } catch (error) {
@@ -137,7 +140,7 @@ async function handlePhotoSelected(event: Event) {
   }
 }
 async function confirmLogout() {
-  const alert = await alertController.create({ header: 'Sair?', message: 'Deseja encerrar sua sessão?', buttons: [{ text: 'Cancelar', role: 'cancel' }, { text: 'Sim, sair', role: 'destructive', handler: async () => { await authStore.logout(); userStore.clear(); await router.replace('/login') } }] })
+  const alert = await alertController.create({ cssClass: 'vault-logout-alert', header: 'Encerrar sessão?', message: 'Você poderá entrar novamente a qualquer momento.', buttons: [{ text: 'Continuar no app', role: 'cancel', cssClass: 'vault-alert-cancel' }, { text: 'Sair', role: 'destructive', cssClass: 'vault-alert-confirm', handler: async () => { await authStore.logout(); userStore.clear(); window.location.replace('/login') } }] })
   await alert.present()
 }
 async function deleteAccount() {
@@ -146,13 +149,13 @@ async function deleteAccount() {
     deleteConfirmOpen.value = false
     userStore.clear()
     await showToast('Conta excluída com sucesso.', 'success')
-    await router.replace('/login')
+    window.location.replace('/login')
   } catch {
     if (authStore.deleteRequiresLogin) {
       deleteConfirmOpen.value = false
       await authStore.logout()
       userStore.clear()
-      await router.replace('/login?deleteAccount=1')
+      window.location.replace('/login?deleteAccount=1')
       await showToast('Entre novamente para concluir a exclusão.', 'info')
       return
     }
@@ -163,8 +166,8 @@ onMounted(async () => { loadNotifications(); await loadProfile() })
 </script>
 
 <style scoped>
-.profile-page{--background:#F8FAFC;--color:#111827}.page-shell{min-height:100%;padding:calc(56px + env(safe-area-inset-top)) 20px calc(104px + env(safe-area-inset-bottom))}header{display:flex;align-items:center;justify-content:space-between}header h1{margin:0;font-size:24px;font-weight:700}header button{border:0;border-radius:8px;padding:6px 14px;background:#F3F4F6;color:#111827;font:600 13px Inter}.identity{display:flex;align-items:center;margin-top:20px}.identity :deep(.vault-avatar){width:64px;height:64px;font-size:28px}.identity>div{margin-left:16px}.identity h2{margin:0;font-size:20px;font-weight:700}.identity p{margin:3px 0 0;color:#6B7280;font-size:13px}.identity span{display:flex;align-items:center;margin-top:4px;color:#22C55E;font-size:12px}.identity i{width:8px;height:8px;margin-right:6px;border-radius:50%;background:#22C55E}.stats-card{display:grid;grid-template-columns:repeat(3,1fr);margin-top:16px;border-radius:12px;padding:16px;background:#FFFFFF;box-shadow:0 1px 3px rgba(0,0,0,.06)}.stats-card div{display:flex;flex-direction:column;align-items:center;border-right:1px solid #F3F4F6;text-align:center}.stats-card div:last-child{border:0}.stats-card strong{font-size:22px;font-weight:700}.stats-card span{margin-top:3px;color:#9CA3AF;font-size:11px}.profile-section{display:block;margin-top:24px}.profile-section h3{margin:0 0 8px;color:#9CA3AF;font-size:11px;font-weight:600;letter-spacing:.5px}.section-card{overflow:hidden;border-radius:12px;background:#FFFFFF}.info-row,.toggle-row{display:flex;width:100%;min-height:68px;align-items:center;border:0;border-bottom:1px solid #F9FAFB;padding:16px;background:#FFFFFF;text-align:left}.info-row:last-child,.toggle-row:last-child{border-bottom:0}.info-row>ion-icon{flex:0 0 auto;color:#9CA3AF;font-size:20px}.info-row>span{display:flex;min-width:0;flex:1;flex-direction:column;margin-left:12px}.info-row small{color:#9CA3AF;font-size:10px;letter-spacing:.5px}.info-row b{overflow:hidden;margin-top:3px;color:#111827;font-size:14px;font-weight:400;text-overflow:ellipsis}.info-row b.accent{color:#991B1B}.info-row .trailing{color:#D1D5DB;font-size:16px}.toggle-row{justify-content:space-between}.toggle-row>span{display:flex;min-width:0;flex-direction:column;padding-right:12px}.toggle-row b{font-size:14px;font-weight:600}.toggle-row small{margin-top:3px;color:#9CA3AF;font-size:13px}.toggle-row ion-toggle{--track-background-checked:#991B1B;--handle-background-checked:#FFFFFF}.delete-account-button,.logout-button{display:flex;align-items:center;justify-content:center;margin:28px auto 0;border:0;padding:8px;background:transparent;color:#EF4444;font:600 15px Inter}.delete-account-button ion-icon{margin-right:6px;font-size:18px}.logout-button{margin-top:8px;color:#6B7280}.delete-modal{--background:rgba(17,24,39,.42);--width:100%;--height:100%}.delete-modal-content{--background:transparent;--padding-start:24px;--padding-end:24px}.delete-modal-content::part(scroll){display:grid;min-height:100%;place-items:center}.delete-card{width:min(360px,100%);border-radius:20px;padding:24px;background:#FFFFFF;box-shadow:0 18px 45px rgba(17,24,39,.18);text-align:center}.delete-icon{display:grid;width:54px;height:54px;margin:0 auto 14px;place-items:center;border-radius:50%;background:#FEF2F2;color:#EF4444}.delete-icon ion-icon{font-size:24px}.delete-card h2{margin:0;color:#111827;font-size:20px}.delete-card p{margin:8px 0 0;color:#6B7280;font-size:14px;line-height:1.45}.delete-actions{display:grid;grid-template-columns:1fr;gap:10px;margin-top:22px}.delete-actions button{height:48px;border:0;border-radius:12px;font:600 14px Inter}.cancel-delete{background:#F3F4F6;color:#111827}.confirm-delete{background:#EF4444;color:#FFFFFF}.delete-actions button:disabled{opacity:.7}
-:deep(.profile-section h3){margin:0 0 8px;color:#9CA3AF;font-size:11px;font-weight:600;letter-spacing:.5px}
-:deep(.section-card){overflow:hidden;border-radius:12px;background:#FFFFFF}
+.profile-page{--background:var(--vault-color-bg);--color:var(--vault-color-text-1)}.page-shell{min-height:100%;padding:calc(56px + env(safe-area-inset-top)) 20px calc(104px + env(safe-area-inset-bottom))}header{display:flex;align-items:center;justify-content:space-between}header h1{margin:0;font-size:24px;font-weight:700}header button{border:0;border-radius:8px;padding:6px 14px;background:var(--vault-color-surface-muted);color:var(--vault-color-text-1);font:600 13px Inter}.identity{display:flex;align-items:center;margin-top:20px}.identity :deep(.vault-avatar){width:64px;height:64px;font-size:28px}.identity>div{margin-left:16px}.identity h2{margin:0;font-size:20px;font-weight:700}.identity p{margin:3px 0 0;color:var(--vault-color-text-2);font-size:13px}.identity span{display:flex;align-items:center;margin-top:4px;color:#22C55E;font-size:12px}.identity i{width:8px;height:8px;margin-right:6px;border-radius:50%;background:#22C55E}.stats-card{display:grid;grid-template-columns:repeat(3,1fr);margin-top:16px;border-radius:12px;padding:16px;background:var(--vault-color-surface);box-shadow:0 1px 3px rgba(0,0,0,.06)}.stats-card div{display:flex;flex-direction:column;align-items:center;border-right:1px solid var(--vault-color-surface-muted);text-align:center}.stats-card div:last-child{border:0}.stats-card strong{font-size:22px;font-weight:700}.stats-card span{margin-top:3px;color:var(--vault-color-text-3);font-size:11px}.profile-section{display:block;margin-top:24px}.profile-section h3{margin:0 0 8px;color:var(--vault-color-text-3);font-size:11px;font-weight:600;letter-spacing:.5px}.section-card{overflow:hidden;border-radius:12px;background:var(--vault-color-surface)}.info-row,.toggle-row{display:flex;width:100%;min-height:68px;align-items:center;border:0;border-bottom:1px solid var(--vault-color-surface-subtle);padding:16px;background:var(--vault-color-surface);text-align:left}.info-row:last-child,.toggle-row:last-child{border-bottom:0}.info-row>ion-icon{flex:0 0 auto;color:var(--vault-color-text-3);font-size:20px}.info-row>span{display:flex;min-width:0;flex:1;flex-direction:column;margin-left:12px}.info-row small{color:var(--vault-color-text-3);font-size:10px;letter-spacing:.5px}.info-row b{overflow:hidden;margin-top:3px;color:var(--vault-color-text-1);font-size:14px;font-weight:400;text-overflow:ellipsis}.info-row b.accent{color:#991B1B}.info-row .trailing{color:var(--vault-color-placeholder);font-size:16px}.toggle-row{justify-content:space-between}.toggle-row>span{display:flex;min-width:0;flex-direction:column;padding-right:12px}.toggle-row b{font-size:14px;font-weight:600}.toggle-row small{margin-top:3px;color:var(--vault-color-text-3);font-size:13px}.toggle-row ion-toggle{--track-background-checked:#991B1B;--handle-background-checked:#FFFFFF}.delete-account-button,.logout-button{display:flex;align-items:center;justify-content:center;margin:28px auto 0;border:0;padding:8px;background:transparent;color:#EF4444;font:600 15px Inter}.delete-account-button ion-icon{margin-right:6px;font-size:18px}.logout-button{margin-top:8px;color:var(--vault-color-text-2)}.delete-modal{--background:rgba(17,24,39,.42);--width:100%;--height:100%}.delete-modal-content{--background:transparent;--padding-start:24px;--padding-end:24px}.delete-modal-content::part(scroll){display:grid;min-height:100%;place-items:center}.delete-card{width:min(360px,100%);border-radius:20px;padding:24px;background:var(--vault-color-surface);box-shadow:0 18px 45px rgba(17,24,39,.18);text-align:center}.delete-icon{display:grid;width:54px;height:54px;margin:0 auto 14px;place-items:center;border-radius:50%;background:var(--vault-color-primary-soft);color:#EF4444}.delete-icon ion-icon{font-size:24px}.delete-card h2{margin:0;color:var(--vault-color-text-1);font-size:20px}.delete-card p{margin:8px 0 0;color:var(--vault-color-text-2);font-size:14px;line-height:1.45}.delete-actions{display:grid;grid-template-columns:1fr;gap:10px;margin-top:22px}.delete-actions button{height:48px;border:0;border-radius:12px;font:600 14px Inter}.cancel-delete{background:var(--vault-color-surface-muted);color:var(--vault-color-text-1)}.confirm-delete{background:#EF4444;color:#FFFFFF}.delete-actions button:disabled{opacity:.7}
+:deep(.profile-section h3){margin:0 0 8px;color:var(--vault-color-text-3);font-size:11px;font-weight:600;letter-spacing:.5px}
+:deep(.section-card){overflow:hidden;border-radius:12px;background:var(--vault-color-surface)}
 .photo-input{display:none}
 </style>
