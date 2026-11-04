@@ -2,10 +2,6 @@
   <ion-tabs>
     <ion-router-outlet />
 
-    <button class="center-new-order-button" type="button" aria-label="Abrir nova comanda" @click="openNewOrder">
-      <ion-icon :icon="add" />
-    </button>
-
     <ion-tab-bar slot="bottom" class="vault-tab-bar">
       <ion-tab-button tab="garcom-dashboard" href="/garcom/dashboard">
         <ion-icon :icon="isActive('/garcom/dashboard') ? home : homeOutline" />
@@ -22,7 +18,9 @@
         <ion-label>Comandas</ion-label>
       </ion-tab-button>
 
-      <ion-tab-button class="new-order-slot" tab="garcom-nova" aria-label="Abrir nova comanda" @click.prevent="openNewOrder" />
+      <ion-tab-button class="new-order-slot" tab="garcom-nova" aria-label="Abrir nova comanda" @click.prevent="openNewOrder">
+        <span class="new-order-circle"><ion-icon :icon="add" /></span>
+      </ion-tab-button>
 
       <ion-tab-button tab="garcom-estoque" href="/garcom/estoque">
         <ion-icon :icon="isActive('/garcom/estoque') ? cube : cubeOutline" />
@@ -84,6 +82,7 @@ onMounted(() => {
 
 <style scoped>
 .vault-tab-bar {
+  position: relative;
   height: calc(76px + env(safe-area-inset-bottom));
   contain: none;
   overflow: visible;
@@ -121,30 +120,25 @@ ion-tab-button.tab-selected ion-label { font-weight: 600; }
 }
 
 .new-order-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   --padding-start: 0;
   --padding-end: 0;
   --color: #FFFFFF;
 }
 
-.center-new-order-button {
-  position: fixed !important;
-  z-index: 20;
-  bottom: calc(10px + env(safe-area-inset-bottom));
-  left: 50%;
+.new-order-circle {
   display: grid;
   width: 56px;
   height: 56px;
-  margin: 0;
   place-items: center;
-  border: 0;
   border-radius: 50%;
-  padding: 0;
-  transform: translateX(-50%);
   background: #991B1B;
   box-shadow: 0 8px 18px rgba(153, 27, 27, 0.32);
 }
 
-.center-new-order-button:active { background: #7F1D1D; }
+.new-order-slot:active .new-order-circle { background: #7F1D1D; }
 
-.center-new-order-button ion-icon { color: #FFFFFF; font-size: 28px; }
+.new-order-circle ion-icon { color: #FFFFFF; font-size: 28px; }
 </style>
